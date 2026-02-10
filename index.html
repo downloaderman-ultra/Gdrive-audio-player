@@ -3,38 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Music Ver.1.2</title>
+    <title>G-Drive Music Ver.1.2.1</title>
     <style>
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 10px; position: relative; }
         .version-tag { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; color: #666; }
         h1 { font-size: 1.2rem; margin: 10px 0; }
         
-        /* 曲名表示エリア */
         #song-title { margin: 15px 0; font-weight: bold; color: #1DB954; font-size: 1.1rem; min-height: 2.4em; display: flex; align-items: center; justify-content: center; padding: 0 10px; }
         
-        /* コントロールエリア */
-        .main-controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-width: 450px; margin: 0 auto 15px; }
-        button { background: #333; color: white; border: none; padding: 12px 5px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+        /* ボタンエリア: Ver.1.1に合わせた3列グリッド */
+        .main-controls { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 10px; 
+            max-width: 450px; 
+            margin: 0 auto 15px; 
+        }
+        
+        button { background: #333; color: white; border: none; padding: 15px 5px; border-radius: 8px; cursor: pointer; font-size: 14px; transition: 0.1s; }
+        button:active { background: #555; transform: scale(0.95); }
         button.active { background: #1DB954; }
-        #play-btn { grid-column: span 3; background: #1DB954; font-weight: bold; font-size: 1.1rem; }
+        
+        /* スリープタイマーのドロップダウンもボタンと同じ高さに調整 */
+        select { 
+            background: #333; color: white; border: none; padding: 0 5px; 
+            border-radius: 8px; width: 100%; font-size: 12px; height: 100%;
+            cursor: pointer;
+        }
 
-        /* リストエリア (横並び) */
-        .content-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; max-width: 600px; margin: 0 auto; height: 40vh; }
+        /* 下部のリストエリア */
+        .content-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; max-width: 600px; margin: 0 auto; height: 45vh; }
         .list-box { background: #1e1e1e; border-radius: 8px; overflow-y: auto; border: 1px solid #333; text-align: left; padding: 5px; }
         .list-box h4 { font-size: 0.8rem; margin: 5px; color: #888; border-bottom: 1px solid #333; padding-bottom: 3px; }
         
-        .item-btn { width: 100%; text-align: left; background: transparent; padding: 10px 5px; border-radius: 4px; font-size: 12px; border-bottom: 1px solid #252525; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .item-btn { width: 100%; text-align: left; background: transparent; padding: 12px 5px; border-radius: 4px; font-size: 13px; border-bottom: 1px solid #252525; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: #ccc; }
         .item-btn:active { background: #333; }
-        .item-btn.playing { color: #1DB954; }
+        .item-btn.playing { color: #1DB954; font-weight: bold; background: #222; }
 
         .hidden { display: none !important; }
-        select { background: #333; color: white; border: 1px solid #666; padding: 8px; border-radius: 8px; width: 100%; font-size: 12px; grid-column: span 2; }
-        .timer-info { grid-column: span 3; font-size: 0.7rem; color: #aaa; margin-top: -5px; }
+        .timer-info { grid-column: span 3; font-size: 0.75rem; color: #aaa; margin-top: 5px; min-height: 1em; }
     </style>
 </head>
 <body>
 
-    <div class="version-tag">Ver.1.2</div>
+    <div class="version-tag">Ver.1.2.1</div>
     <h1>G-Drive Music</h1>
     
     <button id="auth-btn" class="hidden" onclick="handleAuthClick()">Googleドライブに接続</button>
@@ -44,21 +56,24 @@
         <div class="main-controls">
             <button onclick="changeMode('normal')" id="mode-normal" class="active">順次</button>
             <button onclick="changeMode('shuffle')" id="mode-shuffle">シャッフル</button>
-            <button onclick="toggleRepeat()" id="repeat-btn">リピート: OFF</button>
+            <button onclick="skip(-10)">-10秒</button>
             
             <button onclick="prevTrack()">前へ</button>
-            <button onclick="togglePlay()" id="play-btn">再生</button>
-            <button onclick="nextTrack()">次へ</button>
-
-            <button onclick="skip(-10)">-10秒</button>
             <button onclick="skip(10)">+10秒</button>
-            <select id="sleep-timer" onchange="setSleepTimer()">
-                <option value="0">スリープ: OFF</option>
-                <option value="30">30分後消音</option>
-                <option value="60">60分後消音</option>
-                <option value="120">120分後消音</option>
-                <option value="180">180分後消音</option>
-            </select>
+            <button onclick="togglePlay()" id="play-btn">再生</button>
+            
+            <button onclick="nextTrack()">次へ</button>
+            <button onclick="toggleRepeat()" id="repeat-btn">リピート: OFF</button>
+            <div style="height: 100%;">
+                <select id="sleep-timer" onchange="setSleepTimer()">
+                    <option value="0">スリープ: OFF</option>
+                    <option value="30">30分後消音</option>
+                    <option value="60">60分後消音</option>
+                    <option value="120">120分後消音</option>
+                    <option value="180">180分後消音</option>
+                </select>
+            </div>
+
             <div id="timer-display" class="timer-info"></div>
         </div>
 
@@ -83,7 +98,7 @@
         const STORE_KEY = 'gdrive_music_state';
 
         let tokenClient, accessToken = null, playlist = [], currentIndex = 0;
-        let isShuffle = false, repeatMode = 0, sleepTimeout = null;
+        let isShuffle = false, repeatMode = 0, sleepTimeout = null, sleepInterval = null;
         const audio = document.getElementById('audio-player');
 
         function gapiLoaded() { gapi.load('client', () => {}); }
@@ -114,44 +129,48 @@
         }
 
         async function loadFolders() {
-            const query = `'${PARENT_ID}' in parents and mimeType = 'application/vnd.google-apps.folder'`;
-            const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`,
-                { headers: { 'Authorization': `Bearer ${accessToken}` } });
-            const data = await resp.json();
-            const listEl = document.getElementById('folder-list');
-            listEl.innerHTML = '';
-            data.files.sort((a,b)=>a.name.localeCompare(b.name,'ja')).forEach(f => {
-                const btn = document.createElement('div');
-                btn.className = 'item-btn';
-                btn.innerText = "📁 " + f.name;
-                btn.onclick = () => loadSongs(f.id, f.name, true);
-                listEl.appendChild(btn);
-            });
+            try {
+                const query = `'${PARENT_ID}' in parents and mimeType = 'application/vnd.google-apps.folder'`;
+                const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`,
+                    { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                const data = await resp.json();
+                const listEl = document.getElementById('folder-list');
+                listEl.innerHTML = '';
+                data.files.sort((a,b)=>a.name.localeCompare(b.name,'ja')).forEach(f => {
+                    const btn = document.createElement('div');
+                    btn.className = 'item-btn';
+                    btn.innerText = "📁 " + f.name;
+                    btn.onclick = () => loadSongs(f.id, f.name, true);
+                    listEl.appendChild(btn);
+                });
+            } catch(e) { console.error(e); }
         }
 
         async function loadSongs(folderId, folderName, autoPlay) {
             document.getElementById('song-title').innerText = `${folderName} を読込中...`;
             localStorage.setItem(STORE_KEY, JSON.stringify({folderId, folderName}));
             
-            const query = `'${folderId}' in parents and mimeType = 'audio/mpeg'`;
-            const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`,
-                { headers: { 'Authorization': `Bearer ${accessToken}` } });
-            const data = await resp.json();
-            playlist = data.files.sort((a,b)=>a.name.localeCompare(b.name,'ja'));
-            
-            const listEl = document.getElementById('song-list');
-            listEl.innerHTML = '';
-            playlist.forEach((s, idx) => {
-                const btn = document.createElement('div');
-                btn.className = 'item-btn';
-                btn.id = `song-${idx}`;
-                btn.innerText = s.name;
-                btn.onclick = () => playTrack(idx);
-                listEl.appendChild(btn);
-            });
-            
-            document.getElementById('song-title').innerText = `${folderName} (${playlist.length}曲)`;
-            if (autoPlay && playlist.length > 0) playTrack(0);
+            try {
+                const query = `'${folderId}' in parents and mimeType = 'audio/mpeg'`;
+                const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`,
+                    { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                const data = await resp.json();
+                playlist = data.files.sort((a,b)=>a.name.localeCompare(b.name,'ja'));
+                
+                const listEl = document.getElementById('song-list');
+                listEl.innerHTML = '';
+                playlist.forEach((s, idx) => {
+                    const btn = document.createElement('div');
+                    btn.className = 'item-btn';
+                    btn.id = `song-${idx}`;
+                    btn.innerText = s.name;
+                    btn.onclick = () => playTrack(idx);
+                    listEl.appendChild(btn);
+                });
+                
+                document.getElementById('song-title').innerText = `${folderName} (${playlist.length}曲)`;
+                if (autoPlay && playlist.length > 0) playTrack(0);
+            } catch(e) { console.error(e); }
         }
 
         function playTrack(index) {
@@ -159,7 +178,6 @@
             currentIndex = index;
             const track = playlist[index];
             
-            // UI更新
             document.querySelectorAll('.item-btn').forEach(el => el.classList.remove('playing'));
             document.getElementById(`song-${index}`)?.classList.add('playing');
             document.getElementById('song-title').innerText = track.name;
@@ -169,6 +187,7 @@
                 .then(blob => {
                     if (audio.src) URL.revokeObjectURL(audio.src);
                     audio.src = URL.createObjectURL(blob);
+                    audio.volume = 1.0;
                     audio.play();
                     document.getElementById('play-btn').innerText = "一時停止";
                     updateMediaSession(track.name);
@@ -199,12 +218,29 @@
         function setSleepTimer() {
             const mins = parseInt(document.getElementById('sleep-timer').value);
             clearTimeout(sleepTimeout);
-            if (mins === 0) { document.getElementById('timer-display').innerText = ""; return; }
-            document.getElementById('timer-display').innerText = `${mins}分後に停止`;
+            clearInterval(sleepInterval);
+            const display = document.getElementById('timer-display');
+            if (mins === 0) { display.innerText = ""; return; }
+
+            let endTime = Date.now() + mins * 60000;
+            display.innerText = `${mins}分後に停止`;
+
+            sleepInterval = setInterval(() => {
+                let remain = Math.round((endTime - Date.now()) / 60000);
+                display.innerText = remain > 0 ? `${remain}分後に停止` : "停止中...";
+            }, 10000);
+
             sleepTimeout = setTimeout(() => {
                 const fade = setInterval(() => {
                     if (audio.volume > 0.1) audio.volume -= 0.1;
-                    else { audio.pause(); clearInterval(fade); audio.volume = 1; document.getElementById('play-btn').innerText = "再生"; }
+                    else { 
+                        audio.pause(); 
+                        clearInterval(fade); 
+                        clearInterval(sleepInterval);
+                        audio.volume = 1; 
+                        document.getElementById('play-btn').innerText = "再生"; 
+                        display.innerText = "スリープ停止済み";
+                    }
                 }, 500);
             }, mins * 60000);
         }
