@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GDrive Music Player</title>
+    <style>
+        body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 20px; }
+        .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 400px; margin: 20px auto; }
+        button { background: #333; color: white; border: none; padding: 15px; border-radius: 10px; cursor: pointer; }
+        button.active { background: #1DB954; }
+        #song-title { margin: 20px 0; font-weight: bold; min-height: 1.2em; }
+    </style>
+</head>
+<body>
+
+    <h1>G-Drive Music</h1>
+    
+    <button id="auth-btn" onclick="handleAuthClick()">Googleドライブに接続</button>
+    
+    <div id="song-title">ログインしてください</div>
+    
+    <div class="controls">
+        <button onclick="changeMode('normal')" id="mode-normal" class="active">順次</button>
+        <button onclick="changeMode('shuffle')" id="mode-shuffle">シャッフル</button>
+        
+        <button onclick="skip(-10)">-10秒</button>
+        <button onclick="prevTrack()">前へ</button>
+        <button onclick="skip(10)">+10秒</button>
+        
+        <button onclick="togglePlay()" id="play-btn">再生</button>
+        <button onclick="nextTrack()">次へ</button>
+    </div>
+
+    <audio id="audio-player"></audio>
+
+    <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+    <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+
+    <script>
+        const CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com'; // ここを書き換え
+        const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
+
+        let tokenClient;
+        let accessToken = null;
+        let playlist = [];
+        let currentIndex = 0;
+        let isShuffle = false;
+
+        const audio = document.getElementById('audio-player');
+        const playBtn = document.getElementById('play-btn');
+
+        // --- 1. 認証とライブラリの初期化 ---
+        function gapiLoaded() { gapi.load('client', () => {}); }
+        function gisLoaded() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: (resp) => {
+                    accessToken = resp.access_token;
+                    document.getElementById('auth-btn').innerText = "接続済み";
+                    loadMusicFiles();
+                },
+            });
+        }
+
+        function handleAuthClick() {
+            tokenClient.requestAccessToken({prompt: 'consent'});
+        }
+
+        // --- 2. GoogleドライブからMP3一覧を取得 ---
+        async function loadMusicFiles() {
+            const response = await fetch(
+                `https://www.googleapis.com/drive/v3/files?q=mimeType='audio/mpeg'&fields=files(id,name)`,
+                { headers: { 'Authorization': `Bearer ${accessToken}` } }
+            );
+            const data = await response.json();
+            playlist = data.files;
+            if (playlist.length > 0) {
+                document.getElementById('song-title').innerText = `${playlist.length}曲見つかりました`;
+            } else {
+                document.getElementById('song-title').innerText = "MP3ファイルが見つかりません";
+            }
+        }
+
+        // --- 3. 再生ロジック ---
+        function playTrack(index) {
+            if (playlist.length === 0) return;
+            currentIndex = index;
+            const track = playlist[index];
+            
+            // Google Drive APIからバイナリとして取得するためのURL
+            const url = `https://www.googleapis.com/drive/v3/files/${track.id}?alt=media`;
+            
+            // 重要：Authorizationヘッダー付きでfetchして、Blob URLに変換する（これで再生可能になる）
+            fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+                .then(resp => resp.blob())
+                .then(blob => {
+                    const blobUrl = URL.createObjectURL(blob);
+                    audio.src = blobUrl;
+                    audio.play();
+                    document.getElementById('song-title').innerText = track.name;
+                    playBtn.innerText = "一時停止";
+                    setupMediaSession(track);
+                });
+        }
+
+        // --- 4. 操作ボタン ---
+        function togglePlay() {
+            if (audio.paused) { audio.play(); playBtn.innerText = "一時停止"; }
+            else { audio.pause(); playBtn.innerText = "再生"; }
+        }
+
+        function skip(sec) { audio.currentTime += sec; }
+
+        function nextTrack() {
+            let next = isShuffle ? Math.floor(Math.random() * playlist.length) : (currentIndex + 1) % playlist.length;
+            playTrack(next);
+        }
+
+        function prevTrack() {
+            let prev = (currentIndex - 1 + playlist.length) % playlist.length;
+            playTrack(prev);
+        }
+
+        function changeMode(mode) {
+            isShuffle = (mode === 'shuffle');
+            document.getElementById('mode-shuffle').classList.toggle('active', isShuffle);
+            document.getElementById('mode-normal').classList.toggle('active', !isShuffle);
+        }
+
+        audio.onended = nextTrack;
+
+        // --- 5. バックグラウンド再生（Media Session API） ---
+        function setupMediaSession(track) {
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({ title: track.name });
+                navigator.mediaSession.setActionHandler('play', () => audio.play());
+                navigator.mediaSession.setActionHandler('pause', () => audio.pause());
+                navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
+                navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
+            }
+        }
+    </script>
+</body>
+</html>
