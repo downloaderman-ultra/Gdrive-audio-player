@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Music Ver.1.4</title>
+    <title>G-Drive Music Ver.1.5</title>
     <style>
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 10px; position: relative; }
         .version-tag { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; color: #666; }
@@ -25,7 +25,9 @@
             transition: 0.1s;
         }
         button:active { background: #555; transform: scale(0.98); }
-        button.active { background: #1DB954; color: #fff; }
+        
+        /* アクティブ（緑色）のスタイル */
+        button.active { background: #1DB954; color: #fff; font-weight: bold; }
         
         select { 
             text-align: center; text-align-last: center; 
@@ -35,8 +37,10 @@
 
         .big-play-btn {
             width: 100%; max-width: 450px; margin: 0 auto 15px; display: block;
-            background: #1DB954; font-size: 1.2rem; font-weight: bold; padding: 15px;
+            background: #333; /* 初期値はグレー */
+            font-size: 1.2rem; font-weight: bold; padding: 15px;
         }
+        .big-play-btn.active { background: #1DB954; }
 
         .content-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; max-width: 600px; margin: 0 auto; height: 45vh; }
         .list-box { background: #1e1e1e; border-radius: 8px; overflow-y: auto; border: 1px solid #333; text-align: left; padding: 5px; }
@@ -52,7 +56,7 @@
 </head>
 <body>
 
-    <div class="version-tag">Ver.1.4</div>
+    <div class="version-tag">Ver.1.5</div>
     <h1>G-Drive Music</h1>
     
     <button id="auth-btn" class="hidden" onclick="handleAuthClick()" style="max-width:200px; margin:20px auto;">Googleドライブに接続</button>
@@ -77,10 +81,10 @@
             
             <button onclick="nextTrack()">次へ</button>
             <button onclick="skip(-10)">-10秒</button>
-            <button onclick="audio.pause()">一時停止</button>
+            <button onclick="audio.pause()" id="btn-pause">一時停止</button>
         </div>
 
-        <button onclick="audio.play()" class="big-play-btn">再生</button>
+        <button onclick="resumeOrPlay()" id="big-play-btn" class="big-play-btn">再生</button>
 
         <div id="timer-display" class="timer-info"></div>
 
@@ -180,6 +184,17 @@
             } catch(e) { console.error(e); }
         }
 
+        // 再生ボタンのロジック改善
+        function resumeOrPlay() {
+            // すでに曲データがセットされているなら再生再開
+            if (audio.src && audio.src !== window.location.href) {
+                audio.play();
+            } else if (playlist.length > 0) {
+                // 曲リストはあるが再生されていないなら、現在の曲を最初からロードして再生
+                playTrack(currentIndex);
+            }
+        }
+
         function playTrack(index) {
             if (playlist.length === 0) return;
             currentIndex = index;
@@ -195,19 +210,15 @@
 
             const fetchUrl = `https://www.googleapis.com/drive/v3/files/${track.id}?alt=media`;
             fetch(fetchUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } })
-                .then(r => {
-                    if (!r.ok) throw new Error('Network error');
-                    return r.blob();
-                })
+                .then(r => { if (!r.ok) throw new Error('Net err'); return r.blob(); })
                 .then(blob => {
                     if (audio.src) URL.revokeObjectURL(audio.src);
                     audio.src = URL.createObjectURL(blob);
                     audio.volume = 1.0;
-                    audio.play().catch(e => console.log("Playback interaction needed"));
+                    audio.play().catch(e => console.log("Auto-play blocked"));
                     updateMediaSession(track.name);
                 })
                 .catch(err => {
-                    console.error("Retry in 3s...", err);
                     setTimeout(() => playTrack(currentIndex), 3000);
                 });
         }
@@ -267,11 +278,28 @@
         function skip(s) { audio.currentTime += s; }
         audio.onended = nextTrack;
 
+        // UI状態の監視（再生・停止ボタンの色替え）
+        audio.onplay = () => updatePlayPauseUI(true);
+        audio.onpause = () => updatePlayPauseUI(false);
+
+        function updatePlayPauseUI(isPlaying) {
+            const bigPlay = document.getElementById('big-play-btn');
+            const pauseBtn = document.getElementById('btn-pause');
+            
+            if (isPlaying) {
+                bigPlay.classList.add('active'); // 再生中：緑
+                bigPlay.innerText = "再生中";
+                pauseBtn.classList.remove('active'); // 一時停止：グレー
+            } else {
+                bigPlay.classList.remove('active'); // 停止中：グレー
+                bigPlay.innerText = "再生";
+                pauseBtn.classList.add('active'); // 一時停止ボタン：緑（ここが反転）
+            }
+        }
+
         function updateMediaSession(title) {
             if ('mediaSession' in navigator) {
-                navigator.mediaSession.metadata = new MediaMetadata({
-                    title: title, artist: 'G-Drive Music', album: 'GDrive Player v1.4'
-                });
+                navigator.mediaSession.metadata = new MediaMetadata({ title, artist: 'G-Drive Music' });
                 navigator.mediaSession.setActionHandler('play', () => audio.play());
                 navigator.mediaSession.setActionHandler('pause', () => audio.pause());
                 navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
@@ -281,7 +309,7 @@
         
         document.addEventListener("visibilitychange", () => {
             if (document.visibilityState === "visible" && audio.paused && !audio.ended && audio.src) {
-                audio.play().catch(() => {});
+                // audio.play().catch(() => {}); // 自動復帰はコメントアウト（一時停止ボタン実装のため）
             }
         });
     </script>
