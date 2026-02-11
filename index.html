@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Music Ver.1.5.9.1</title>
+    <title>G-Drive Music Ver.1.5.9.2</title>
     <style>
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 10px; position: relative; display: flex; flex-direction: column; height: 95vh; }
         .version-tag { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; color: #666; }
@@ -43,12 +43,14 @@
         #visualizer { width: 100%; height: 100%; display: block; }
 
         .hidden { display: none !important; }
+        /* 認証ボタンを目立たせる */
+        #auth-btn { background: #1DB954; color: white; font-weight: bold; border: 1px solid #fff; padding: 15px; width: 80%; }
         .timer-info { max-width: 450px; margin: 0 auto 5px; font-size: 0.7rem; color: #888; min-height: 1em; }
     </style>
 </head>
 <body>
 
-    <div class="version-tag">Ver.1.5.9.1</div>
+    <div class="version-tag">Ver.1.5.9.2</div>
     <h1>G-Drive Music</h1>
     
     <button id="auth-btn" class="hidden" onclick="handleAuthClick()" style="max-width:200px; margin:20px auto;">Googleドライブに接続</button>
@@ -115,7 +117,7 @@
         let sleepTimeout = null, sleepInterval = null;
         let currentFolderId = null, currentFolderName = "";
         let isRetry = false;
-        let lastPositionUpdate = 0; // ★スロットリング用
+        let lastPositionUpdate = 0;
 
         const audio = document.getElementById('audio-player');
         const volumeSlider = document.getElementById('volume-slider');
@@ -127,12 +129,25 @@
 
         volumeSlider.addEventListener('input', (e) => { audio.volume = e.target.value; saveSettings(); });
 
+        // ★ 起動保護: 3秒経っても画面が変わらなければ手動ボタンを表示
+        setTimeout(() => {
+            const title = document.getElementById('song-title');
+            if (title.innerText === "接続中..." && document.getElementById('main-ui').classList.contains('hidden')) {
+                document.getElementById('auth-btn').classList.remove('hidden');
+                title.innerText = "ボタンを押して接続してください";
+            }
+        }, 3000);
+
         function gapiLoaded() { gapi.load('client', () => {}); }
         function gisLoaded() {
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID, scope: SCOPES,
                 callback: (resp) => {
-                    if (resp.error) { document.getElementById('auth-btn').classList.remove('hidden'); return; }
+                    if (resp.error) { 
+                        document.getElementById('auth-btn').classList.remove('hidden'); 
+                        document.getElementById('song-title').innerText = "ボタンを押して接続してください";
+                        return; 
+                    }
                     accessToken = resp.access_token;
                     document.getElementById('auth-btn').classList.add('hidden');
                     document.getElementById('main-ui').classList.remove('hidden');
@@ -211,4 +226,190 @@
                 if(resp.status === 401) { refreshAccessToken(); return; }
                 const data = await resp.json();
                 allFolders = data.files.sort((a,b)=>a.name.localeCompare(b.name,'ja'));
-                const
+                const listEl = document.getElementById('folder-list');
+                listEl.innerHTML = '';
+                allFolders.forEach(f => {
+                    const btn = document.createElement('div');
+                    btn.className = 'item-btn';
+                    if(f.id === currentFolderId) btn.classList.add('current-folder');
+                    btn.id = `folder-${f.id}`;
+                    btn.innerText = "📁 " + f.name;
+                    btn.onclick = () => loadSongs(f.id, f.name, true);
+                    listEl.appendChild(btn);
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        async function loadSongs(folderId, folderName, autoPlay) {
+            currentFolderId = folderId; currentFolderName = folderName; saveSettings();
+            document.getElementById('song-title').innerText = `${folderName} を読込中...`;
+            document.querySelectorAll('#folder-list .item-btn').forEach(b => b.classList.remove('current-folder'));
+            document.getElementById(`folder-${folderId}`)?.classList.add('current-folder');
+            try {
+                const query = `'${folderId}' in parents and mimeType contains 'audio/'`;
+                const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                if(resp.status === 401) { refreshAccessToken(); return; }
+                const data = await resp.json();
+                playlist = data.files.sort((a,b)=>a.name.localeCompare(b.name,'ja'));
+                const listEl = document.getElementById('song-list');
+                listEl.innerHTML = '';
+                playlist.forEach((s, idx) => {
+                    const btn = document.createElement('div');
+                    btn.className = 'item-btn'; btn.id = `song-${idx}`; btn.innerText = s.name;
+                    btn.onclick = () => playTrack(idx);
+                    listEl.appendChild(btn);
+                });
+                document.getElementById('song-title').innerText = `${folderName} (${playlist.length}曲)`;
+                if (playlist.length === 0 && autoPlay && playScope === 'all') {
+                    setTimeout(() => { 
+                        if (isShuffle) loadSongs(allFolders[Math.floor(Math.random() * allFolders.length)].id, "", true);
+                        else {
+                            const nextIdx = (allFolders.findIndex(f => f.id === currentFolderId) + 1) % allFolders.length;
+                            loadSongs(allFolders[nextIdx].id, allFolders[nextIdx].name, true);
+                        }
+                    }, 500);
+                    return;
+                }
+                if (autoPlay && playlist.length > 0) playTrack(isShuffle ? Math.floor(Math.random() * playlist.length) : 0);
+            } catch(e) { console.error(e); }
+        }
+
+        function resumeOrPlay() {
+            initAudioContext();
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            if (audio.src && audio.src !== window.location.href) { if (audio.error) audio.load(); audio.play().catch(e => console.log("Play failed")); }
+            else if (playlist.length > 0) playTrack(currentIndex);
+        }
+
+        function playTrack(index) {
+            initAudioContext();
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            if (playlist.length === 0) return;
+            currentIndex = index;
+            const track = playlist[index];
+            document.querySelectorAll('#song-list .item-btn').forEach(el => el.classList.remove('playing'));
+            const targetBtn = document.getElementById(`song-${index}`);
+            if (targetBtn) { targetBtn.classList.add('playing'); targetBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+            
+            document.getElementById('song-title').innerText = track.name + " (読込中...)";
+            
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: track.name, artist: 'G-Drive Music', album: currentFolderName,
+                    artwork: [{ src: ARTWORK_DATA, sizes: '64x64', type: 'image/png' }]
+                });
+                navigator.mediaSession.playbackState = 'playing'; 
+                // ★ 修正: 安全のため引数なしでクリアするか、try-catchで囲む
+                try { navigator.mediaSession.setPositionState(); } catch(e) {} 
+            }
+
+            audio.pause();
+            if (audio.src && audio.src.startsWith('blob:')) {
+                URL.revokeObjectURL(audio.src);
+            }
+            audio.removeAttribute('src'); 
+            audio.load(); 
+
+            const fetchUrl = `https://www.googleapis.com/drive/v3/files/${track.id}?alt=media`;
+            fetch(fetchUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+                .then(r => { if (r.status === 401) throw new Error('401'); if (!r.ok) throw new Error(r.status); return r.blob(); })
+                .then(blob => {
+                    audio.src = URL.createObjectURL(blob);
+                    audio.volume = volumeSlider.value;
+                    document.getElementById('song-title').innerText = track.name;
+                    audio.play().catch(e => console.log("Interrupted"));
+                })
+                .catch(err => { if(err.message.includes('401')) refreshAccessToken(); });
+        }
+
+        function nextTrack() {
+            if (repeatMode === 2) { playTrack(currentIndex); return; }
+            if (playScope === 'all' && isShuffle) { loadSongs(allFolders[Math.floor(Math.random() * allFolders.length)].id, "", true); return; }
+            let next = isShuffle ? Math.floor(Math.random() * playlist.length) : (currentIndex + 1);
+            if (next >= playlist.length) {
+                if (repeatMode === 1) next = 0; 
+                else if (playScope === 'all') {
+                    const nextIdx = (allFolders.findIndex(f => f.id === currentFolderId) + 1) % allFolders.length;
+                    loadSongs(allFolders[nextIdx].id, allFolders[nextIdx].name, true);
+                    return;
+                } else { audio.pause(); return; }
+            }
+            playTrack(next);
+        }
+
+        function prevTrack() { playTrack((currentIndex - 1 + playlist.length) % playlist.length); }
+        function changeScope(scope) { playScope = scope; document.getElementById('scope-folder').className = `scope-btn ${scope === 'folder' ? 'active' : ''}`; document.getElementById('scope-all').className = `scope-btn ${scope === 'all' ? 'active' : ''}`; saveSettings(); }
+        function toggleRepeat() {
+            repeatMode = (repeatMode + 1) % 3;
+            const labels = ["OFF", "ALL", "1曲"];
+            document.getElementById('repeat-btn').innerText = "リピート: " + labels[repeatMode];
+            document.getElementById('repeat-btn').classList.toggle('active', repeatMode > 0);
+            saveSettings();
+        }
+        function changeMode(m) { isShuffle = (m === 'shuffle'); document.getElementById('mode-shuffle').classList.toggle('active', isShuffle); document.getElementById('mode-normal').classList.toggle('active', !isShuffle); saveSettings(); }
+        function setSleepTimer() {
+            const mins = parseInt(document.getElementById('sleep-timer').value);
+            clearTimeout(sleepTimeout); clearInterval(sleepInterval);
+            const display = document.getElementById('timer-display');
+            if (mins === 0) { display.innerText = ""; return; }
+            let endTime = Date.now() + mins * 60000;
+            display.innerText = `タイマー: ${mins}分後に停止`;
+            sleepInterval = setInterval(() => { let remain = Math.round((endTime - Date.now()) / 60000); display.innerText = remain > 0 ? `残り ${remain}分` : "停止..."; }, 10000);
+            sleepTimeout = setTimeout(() => {
+                const fade = setInterval(() => { if (audio.volume > 0.1) audio.volume -= 0.1; else { audio.pause(); clearInterval(fade); clearInterval(sleepInterval); audio.volume = volumeSlider.value; display.innerText = "停止しました"; } }, 500);
+            }, mins * 60000);
+        }
+        function skip(s) { audio.currentTime += s; }
+        
+        audio.onended = nextTrack;
+        audio.onplay = () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; updatePlayPauseUI(true); };
+        audio.onpause = () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; updatePlayPauseUI(false); };
+        audio.onerror = (e) => { setTimeout(() => { nextTrack(); }, 1000); };
+        audio.onwaiting = () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; };
+
+        function setupMediaSessionHandlers() {
+            if ('mediaSession' in navigator) {
+                const handlers = [
+                    ['play', () => { navigator.mediaSession.playbackState = 'playing'; resumeOrPlay(); }],
+                    ['pause', () => { navigator.mediaSession.playbackState = 'paused'; audio.pause(); }],
+                    ['previoustrack', prevTrack],
+                    ['nexttrack', nextTrack],
+                    ['seekbackward', () => skip(-10)],
+                    ['seekforward', () => skip(10)]
+                ];
+                for (const [action, handler] of handlers) {
+                    try { navigator.mediaSession.setActionHandler(action, handler); } catch (e) {}
+                }
+            }
+        }
+
+        audio.addEventListener('loadedmetadata', () => { 
+            if ('mediaSession' in navigator && !isNaN(audio.duration) && audio.duration !== Infinity) { 
+                navigator.mediaSession.setPositionState({ duration: audio.duration, playbackRate: audio.playbackRate, position: 0 }); 
+            } 
+        });
+
+        if ('mediaSession' in navigator) {
+            audio.addEventListener('timeupdate', () => { 
+                const now = Date.now();
+                if (now - lastPositionUpdate < 1000) return;
+                lastPositionUpdate = now;
+
+                if (!isNaN(audio.duration) && audio.duration !== Infinity && !isNaN(audio.currentTime)) { 
+                    try {
+                        navigator.mediaSession.setPositionState({ duration: audio.duration, playbackRate: audio.playbackRate, position: audio.currentTime }); 
+                    } catch(e) {}
+                } 
+            });
+        }
+
+        function updatePlayPauseUI(isPlaying) {
+            const bigPlay = document.getElementById('big-play-btn'); const pauseBtn = document.getElementById('btn-pause');
+            if (isPlaying) { bigPlay.classList.add('active'); bigPlay.innerText = "再生中"; pauseBtn.classList.remove('active'); }
+            else { bigPlay.classList.remove('active'); bigPlay.innerText = "再生"; pauseBtn.classList.add('active'); }
+        }
+    </script>
+    <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+    <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+</body>
+</html>
