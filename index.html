@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Music Ver.1.5.3</title>
+    <title>G-Drive Music Ver.1.5.5</title>
     <style>
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 10px; position: relative; }
         .version-tag { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; color: #666; }
@@ -11,7 +11,6 @@
         
         #song-title { margin: 15px 0; font-weight: bold; color: #1DB954; font-size: 1.1rem; min-height: 2.4em; display: flex; align-items: center; justify-content: center; padding: 0 10px; }
         
-        /* 3x3 コントロールグリッド */
         .control-grid { 
             display: grid; 
             grid-template-columns: repeat(3, 1fr); 
@@ -30,14 +29,12 @@
         
         select { text-align: center; text-align-last: center; appearance: none; border: 1px solid #444; }
 
-        /* 大きな再生ボタン */
         .big-play-btn {
             width: 100%; max-width: 450px; margin: 0 auto 8px; display: block;
             background: #333; font-size: 1.2rem; font-weight: bold; padding: 15px;
         }
         .big-play-btn.active { background: #1DB954; }
 
-        /* 再生範囲ボタン */
         .scope-controls {
             display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
             max-width: 450px; margin: 0 auto 15px;
@@ -45,7 +42,6 @@
         .scope-btn { background: #222; border: 1px solid #444; color: #888; }
         .scope-btn.active { background: #1DB954; color: white; border-color: #1DB954; }
 
-        /* リストエリア */
         .content-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; max-width: 600px; margin: 0 auto; height: 40vh; }
         .list-box { background: #1e1e1e; border-radius: 8px; overflow-y: auto; border: 1px solid #333; text-align: left; padding: 5px; }
         .list-box h4 { font-size: 0.8rem; margin: 5px; color: #888; border-bottom: 1px solid #333; padding-bottom: 3px; text-align: center; }
@@ -61,7 +57,7 @@
 </head>
 <body>
 
-    <div class="version-tag">Ver.1.5.3</div>
+    <div class="version-tag">Ver.1.5.5</div>
     <h1>G-Drive Music</h1>
     
     <button id="auth-btn" class="hidden" onclick="handleAuthClick()" style="max-width:200px; margin:20px auto;">Googleドライブに接続</button>
@@ -145,7 +141,6 @@
         function handleAuthClick() { tokenClient.requestAccessToken({ prompt: 'select_account' }); }
 
         async function initApp() {
-            // 設定の復元
             const saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
             
             if (saved.isShuffle !== undefined) changeMode(saved.isShuffle ? 'shuffle' : 'normal');
@@ -154,7 +149,6 @@
 
             await loadFolders();
             
-            // 前回開いていたフォルダがあれば読み込む（自動再生はOFF）
             if (saved.folderId) {
                 loadSongs(saved.folderId, saved.folderName, false);
             } else {
@@ -162,7 +156,6 @@
             }
         }
 
-        // 設定を保存する関数
         function saveSettings() {
             const settings = {
                 folderId: currentFolderId,
@@ -199,14 +192,16 @@
         async function loadSongs(folderId, folderName, autoPlay) {
             currentFolderId = folderId;
             currentFolderName = folderName;
-            saveSettings(); // フォルダ変更を保存
+            saveSettings();
 
             document.getElementById('song-title').innerText = `${folderName} を読込中...`;
             document.querySelectorAll('#folder-list .item-btn').forEach(b => b.classList.remove('current-folder'));
             document.getElementById(`folder-${folderId}`)?.classList.add('current-folder');
 
             try {
-                const query = `'${folderId}' in parents and mimeType = 'audio/mpeg'`;
+                // 変更点1: mimeType = 'audio/mpeg' から mimeType contains 'audio/' に変更
+                // これにより、MP3だけでなく、WAV, M4A, OGGなども検索対象になる
+                const query = `'${folderId}' in parents and mimeType contains 'audio/'`;
                 const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`,
                     { headers: { 'Authorization': `Bearer ${accessToken}` } });
                 
@@ -228,6 +223,31 @@
                 
                 document.getElementById('song-title').innerText = `${folderName} (${playlist.length}曲)`;
                 
+                // 変更点2: 空フォルダまたは再生可能ファイルがない場合のスキップ処理
+                if (playlist.length === 0) {
+                    document.getElementById('song-title').innerText = `${folderName} (ファイルなし)`;
+                    
+                    // 自動再生中かつ「全フォルダ再生」モードなら、次のフォルダへ即移動
+                    if (autoPlay && playScope === 'all') {
+                        console.log("Empty folder, skipping to next...");
+                        setTimeout(() => { // 短いウェイトを入れてループ負荷を軽減
+                            if (isShuffle) {
+                                const randomFolder = allFolders[Math.floor(Math.random() * allFolders.length)];
+                                loadSongs(randomFolder.id, randomFolder.name, true);
+                            } else {
+                                const currentFolderIndex = allFolders.findIndex(f => f.id === currentFolderId);
+                                const nextFolderIndex = (currentFolderIndex + 1) % allFolders.length;
+                                const nextFolder = allFolders[nextFolderIndex];
+                                // 全フォルダ空の場合の無限ループ防止（自分に戻ってきたら止まる）
+                                if (nextFolder.id !== currentFolderId) {
+                                    loadSongs(nextFolder.id, nextFolder.name, true);
+                                }
+                            }
+                        }, 500);
+                        return;
+                    }
+                }
+
                 if (autoPlay && playlist.length > 0) {
                     if(playScope === 'all' && isShuffle) {
                         playTrack(Math.floor(Math.random() * playlist.length));
@@ -277,13 +297,13 @@
                 })
                 .catch(err => {
                     if(err.message === '401') tokenClient.requestAccessToken({prompt: ''});
+                    // エラー時に次へ進むロジックを入れるか？今はリトライせずユーザー操作待ち
                 });
         }
 
         function nextTrack() {
             if (repeatMode === 2) { playTrack(currentIndex); return; }
 
-            // 全フォルダシャッフル時の挙動
             if (playScope === 'all' && isShuffle) {
                 const randomFolder = allFolders[Math.floor(Math.random() * allFolders.length)];
                 loadSongs(randomFolder.id, randomFolder.name, true);
@@ -301,7 +321,6 @@
                 if (repeatMode === 1) {
                     next = 0; 
                 } else if (playScope === 'all') {
-                    // 全フォルダ順次再生
                     const currentFolderIndex = allFolders.findIndex(f => f.id === currentFolderId);
                     const nextFolderIndex = (currentFolderIndex + 1) % allFolders.length;
                     const nextFolder = allFolders[nextFolderIndex];
