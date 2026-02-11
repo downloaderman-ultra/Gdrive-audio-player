@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Music Ver.1.5.8.3</title>
+    <title>G-Drive Music Ver.1.5.8.4</title>
     <style>
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 10px; position: relative; }
         .version-tag { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; color: #666; }
@@ -72,7 +72,7 @@
 </head>
 <body>
 
-    <div class="version-tag">Ver.1.5.8.3</div>
+    <div class="version-tag">Ver.1.5.8.4</div>
     <h1>G-Drive Music</h1>
     
     <button id="auth-btn" class="hidden" onclick="handleAuthClick()" style="max-width:200px; margin:20px auto;">Googleドライブに接続</button>
@@ -151,7 +151,6 @@
         let audioCtx, analyser, dataArray, canvas, canvasCtx, animationId;
         let isAudioContextInitialized = false;
 
-        // ★ Base64化した緑色の画像データ（通信不要）★
         const ARTWORK_DATA = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAVklEQVRo3u3RAREAMAwDkZm/6RqmEA0fLgW1790dPCZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGibgAS76A/1z768hAAAAAElFTkSuQmCC';
 
         volumeSlider.addEventListener('input', (e) => {
@@ -336,10 +335,16 @@
             if (playlist.length === 0) return;
             currentIndex = index;
             const track = playlist[index];
+
+            // ★ UIの高速化: データ読み込み前にタイトルとロック画面表示を更新（先読み）
             document.querySelectorAll('#song-list .item-btn').forEach(el => el.classList.remove('playing'));
             document.getElementById(`song-${index}`)?.classList.add('playing');
             document.getElementById(`song-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            document.getElementById('song-title').innerText = track.name;
+            document.getElementById('song-title').innerText = track.name + " (読込中...)";
+            
+            // 先にMediaSessionを更新（まだロード中でも曲名を変える）
+            updateMediaSession(track.name);
+
             audio.pause();
             audio.removeAttribute('src');
             audio.load(); 
@@ -353,8 +358,9 @@
                 .then(blob => {
                     audio.src = URL.createObjectURL(blob);
                     audio.volume = volumeSlider.value;
+                    document.getElementById('song-title').innerText = track.name; // 読込完了で(読込中)を消す
                     audio.play().catch(e => console.log("Interrupted"));
-                    updateMediaSession(track.name);
+                    updateMediaSession(track.name); // 念のため再更新
                 })
                 .catch(err => {
                     if(err.message.includes('401')) refreshAccessToken();
@@ -425,19 +431,25 @@
 
         function updateMediaSession(title) {
             if ('mediaSession' in navigator) {
-                // 再生状態を明示的にセット
+                // 再生状態を常にplayingにしてボタン反応を良くする（読み込み中でも）
                 navigator.mediaSession.playbackState = 'playing';
 
                 navigator.mediaSession.metadata = new MediaMetadata({
                     title: title,
                     artist: 'G-Drive Music',
                     album: currentFolderName,
-                    // 埋め込み画像を使用
                     artwork: [{ src: ARTWORK_DATA, sizes: '64x64', type: 'image/png' }]
                 });
 
-                navigator.mediaSession.setActionHandler('play', () => { resumeOrPlay(); });
-                navigator.mediaSession.setActionHandler('pause', () => { audio.pause(); });
+                // ロック画面からの操作を受けた瞬間にUIを更新する
+                navigator.mediaSession.setActionHandler('play', () => { 
+                    navigator.mediaSession.playbackState = 'playing';
+                    resumeOrPlay(); 
+                });
+                navigator.mediaSession.setActionHandler('pause', () => { 
+                    navigator.mediaSession.playbackState = 'paused';
+                    audio.pause(); 
+                });
                 navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
                 navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
                 navigator.mediaSession.setActionHandler('seekbackward', () => skip(-10));
@@ -445,7 +457,6 @@
             }
         }
 
-        // 状態の変化に合わせてplaybackStateを更新
         audio.addEventListener('play', () => {
              if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
         });
@@ -453,7 +464,6 @@
              if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
         });
 
-        // シークバー更新用
         if ('mediaSession' in navigator) {
             audio.addEventListener('timeupdate', () => {
                 if (!isNaN(audio.duration) && !isNaN(audio.currentTime)) {
