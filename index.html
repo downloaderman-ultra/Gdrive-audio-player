@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Music Ver.1.5.8.2</title>
+    <title>G-Drive Music Ver.1.5.8.3</title>
     <style>
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 10px; position: relative; }
         .version-tag { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; color: #666; }
@@ -72,7 +72,7 @@
 </head>
 <body>
 
-    <div class="version-tag">Ver.1.5.8.2</div>
+    <div class="version-tag">Ver.1.5.8.3</div>
     <h1>G-Drive Music</h1>
     
     <button id="auth-btn" class="hidden" onclick="handleAuthClick()" style="max-width:200px; margin:20px auto;">Googleドライブに接続</button>
@@ -151,8 +151,8 @@
         let audioCtx, analyser, dataArray, canvas, canvasCtx, animationId;
         let isAudioContextInitialized = false;
 
-        // ダミーのアートワーク画像（ロック画面表示用）
-        const ARTWORK_URL = 'https://via.placeholder.com/512/1a1a1a/1DB954?text=Music';
+        // ★ Base64化した緑色の画像データ（通信不要）★
+        const ARTWORK_DATA = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAVklEQVRo3u3RAREAMAwDkZm/6RqmEA0fLgW1790dPCZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGibgAS76A/1z768hAAAAAElFTkSuQmCC';
 
         volumeSlider.addEventListener('input', (e) => {
             audio.volume = e.target.value;
@@ -423,20 +423,21 @@
         audio.onpause = () => updatePlayPauseUI(false);
         audio.onerror = () => { console.log("Audio Error"); };
 
-        // ★ MediaSession 更新処理の強化 ★
-        // タイムライン情報（duration/position）をOSに渡すことでシークバーが有効になる
         function updateMediaSession(title) {
             if ('mediaSession' in navigator) {
+                // 再生状態を明示的にセット
+                navigator.mediaSession.playbackState = 'playing';
+
                 navigator.mediaSession.metadata = new MediaMetadata({
                     title: title,
                     artist: 'G-Drive Music',
                     album: currentFolderName,
-                    artwork: [{ src: ARTWORK_URL, sizes: '512x512', type: 'image/png' }]
+                    // 埋め込み画像を使用
+                    artwork: [{ src: ARTWORK_DATA, sizes: '64x64', type: 'image/png' }]
                 });
 
-                // アクションハンドラの設定
-                navigator.mediaSession.setActionHandler('play', () => resumeOrPlay());
-                navigator.mediaSession.setActionHandler('pause', () => audio.pause());
+                navigator.mediaSession.setActionHandler('play', () => { resumeOrPlay(); });
+                navigator.mediaSession.setActionHandler('pause', () => { audio.pause(); });
                 navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
                 navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
                 navigator.mediaSession.setActionHandler('seekbackward', () => skip(-10));
@@ -444,7 +445,15 @@
             }
         }
 
-        // 時間経過に合わせてタイムライン情報を更新
+        // 状態の変化に合わせてplaybackStateを更新
+        audio.addEventListener('play', () => {
+             if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+        });
+        audio.addEventListener('pause', () => {
+             if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+        });
+
+        // シークバー更新用
         if ('mediaSession' in navigator) {
             audio.addEventListener('timeupdate', () => {
                 if (!isNaN(audio.duration) && !isNaN(audio.currentTime)) {
