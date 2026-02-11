@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Music Ver.1.5.8.6</title>
+    <title>G-Drive Music Ver.1.5.8.8</title>
     <style>
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 10px; position: relative; }
         .version-tag { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; color: #666; }
@@ -72,7 +72,7 @@
 </head>
 <body>
 
-    <div class="version-tag">Ver.1.5.8.6</div>
+    <div class="version-tag">Ver.1.5.8.7</div>
     <h1>G-Drive Music</h1>
     
     <button id="auth-btn" class="hidden" onclick="handleAuthClick()" style="max-width:200px; margin:20px auto;">Googleドライブに接続</button>
@@ -425,15 +425,9 @@
         audio.onended = nextTrack;
         audio.onplay = () => updatePlayPauseUI(true);
         audio.onpause = () => updatePlayPauseUI(false);
-        
-        // ★Ver.1.5.8.6 での追加：WMAなどの非対応ファイル対策★
         audio.onerror = (e) => {
             console.error("Playback error", audio.error);
-            // エラーが発生したら自動スキップ（1秒待機してから）
-            // これにより、WMAなどは自動的に飛ばされる
-            setTimeout(() => {
-                nextTrack();
-            }, 1000);
+            setTimeout(() => { nextTrack(); }, 1000);
         };
 
         function updateMediaSession(title) {
@@ -483,6 +477,18 @@
                  navigator.mediaSession.playbackState = 'paused';
                  if(playlist.length > 0) updateMediaSessionPaused(playlist[currentIndex].name);
              }
+        });
+
+        // ★Ver.1.5.8.7 追加: メタデータ読み込み時に即座にPositionStateを更新★
+        // これにより再生開始直後のロック画面ボタンの反応速度が向上する
+        audio.addEventListener('loadedmetadata', () => {
+            if ('mediaSession' in navigator && !isNaN(audio.duration)) {
+                navigator.mediaSession.setPositionState({
+                    duration: audio.duration,
+                    playbackRate: audio.playbackRate,
+                    position: 0 // 再生開始直後は0
+                });
+            }
         });
 
         if ('mediaSession' in navigator) {
