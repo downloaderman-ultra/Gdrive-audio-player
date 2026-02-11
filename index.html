@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Music Ver.1.1.8</title>
+    <title>G-Drive Music Ver.1.5.8</title>
     <style>
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 10px; position: relative; }
         .version-tag { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; color: #666; }
@@ -48,9 +48,7 @@
             background: #222; padding: 8px 15px; border-radius: 6px;
         }
         .volume-label { font-size: 0.8rem; color: #aaa; white-space: nowrap; }
-        input[type=range] {
-            width: 100%; cursor: pointer; accent-color: #1DB954; height: 4px;
-        }
+        input[type=range] { width: 100%; cursor: pointer; accent-color: #1DB954; height: 4px; }
 
         #visualizer-container {
             max-width: 600px; margin: 0 auto 10px;
@@ -74,7 +72,7 @@
 </head>
 <body>
 
-    <div class="version-tag">Ver.1.1.8</div>
+    <div class="version-tag">Ver.1.5.8</div>
     <h1>G-Drive Music</h1>
     
     <button id="auth-btn" class="hidden" onclick="handleAuthClick()" style="max-width:200px; margin:20px auto;">Googleドライブに接続</button>
@@ -145,12 +143,11 @@
         let isShuffle = false, repeatMode = 0, playScope = 'folder'; 
         let sleepTimeout = null, sleepInterval = null;
         let currentFolderId = null, currentFolderName = "";
-        let isRetry = false; // 再試行フラグ
+        let isRetry = false;
 
         const audio = document.getElementById('audio-player');
         const volumeSlider = document.getElementById('volume-slider');
 
-        // Web Audio & Visualizer
         let audioCtx, analyser, dataArray, canvas, canvasCtx, animationId;
         let isAudioContextInitialized = false;
 
@@ -168,11 +165,10 @@
                     accessToken = resp.access_token;
                     document.getElementById('auth-btn').classList.add('hidden');
                     document.getElementById('main-ui').classList.remove('hidden');
-                    // 再試行中なら即座に曲ロードへ戻る
                     if (isRetry) {
-                         isRetry = false;
-                         if(playlist.length > 0) playTrack(currentIndex);
-                         else initApp();
+                        isRetry = false;
+                        if(playlist.length > 0) playTrack(currentIndex);
+                        else initApp();
                     } else {
                         initApp();
                     }
@@ -183,9 +179,7 @@
 
         function handleAuthClick() { tokenClient.requestAccessToken({ prompt: 'select_account' }); }
 
-        // トークンリフレッシュ用関数
         function refreshAccessToken() {
-            console.log("Refreshing token...");
             isRetry = true;
             tokenClient.requestAccessToken({ prompt: '' });
         }
@@ -203,7 +197,6 @@
             window.addEventListener('resize', resizeCanvas);
 
             await loadFolders();
-            
             if (saved.folderId) {
                 loadSongs(saved.folderId, saved.folderName, false);
             } else {
@@ -217,14 +210,14 @@
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 audioCtx = new AudioContext();
                 analyser = audioCtx.createAnalyser();
-                analyser.fftSize = 64; // 負荷軽減のためサイズを縮小
+                analyser.fftSize = 64; 
                 const source = audioCtx.createMediaElementSource(audio);
                 source.connect(analyser);
                 analyser.connect(audioCtx.destination);
                 dataArray = new Uint8Array(analyser.frequencyBinCount);
                 isAudioContextInitialized = true;
                 drawVisualizer();
-            } catch(e) { console.error("AudioContext init error:", e); }
+            } catch(e) { console.error("Visualizer Error:", e); }
         }
 
         function resizeCanvas() {
@@ -262,9 +255,7 @@
                 const query = `'${PARENT_ID}' in parents and mimeType = 'application/vnd.google-apps.folder'`;
                 const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`,
                     { headers: { 'Authorization': `Bearer ${accessToken}` } });
-                
-                if(resp.status === 401) { refreshAccessToken(); return; } // トークン切れ対応
-
+                if(resp.status === 401) { refreshAccessToken(); return; }
                 const data = await resp.json();
                 allFolders = data.files.sort((a,b)=>a.name.localeCompare(b.name,'ja'));
                 const listEl = document.getElementById('folder-list');
@@ -285,21 +276,16 @@
             currentFolderId = folderId;
             currentFolderName = folderName;
             saveSettings();
-
             document.getElementById('song-title').innerText = `${folderName} を読込中...`;
             document.querySelectorAll('#folder-list .item-btn').forEach(b => b.classList.remove('current-folder'));
             document.getElementById(`folder-${folderId}`)?.classList.add('current-folder');
-
             try {
                 const query = `'${folderId}' in parents and mimeType contains 'audio/'`;
                 const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`,
                     { headers: { 'Authorization': `Bearer ${accessToken}` } });
-                
                 if(resp.status === 401) { refreshAccessToken(); return; }
-
                 const data = await resp.json();
                 playlist = data.files.sort((a,b)=>a.name.localeCompare(b.name,'ja'));
-                
                 const listEl = document.getElementById('song-list');
                 listEl.innerHTML = '';
                 playlist.forEach((s, idx) => {
@@ -310,121 +296,80 @@
                     btn.onclick = () => playTrack(idx);
                     listEl.appendChild(btn);
                 });
-                
                 document.getElementById('song-title').innerText = `${folderName} (${playlist.length}曲)`;
-                
                 if (playlist.length === 0) {
-                    document.getElementById('song-title').innerText = `${folderName} (ファイルなし)`;
                     if (autoPlay && playScope === 'all') {
                         setTimeout(() => { 
-                           // スキップロジック
                            if (isShuffle) {
-                                const randomFolder = allFolders[Math.floor(Math.random() * allFolders.length)];
-                                loadSongs(randomFolder.id, randomFolder.name, true);
+                                loadSongs(allFolders[Math.floor(Math.random() * allFolders.length)].id, "", true);
                             } else {
-                                const currentFolderIndex = allFolders.findIndex(f => f.id === currentFolderId);
-                                const nextFolderIndex = (currentFolderIndex + 1) % allFolders.length;
-                                const nextFolder = allFolders[nextFolderIndex];
-                                if (nextFolder.id !== currentFolderId) loadSongs(nextFolder.id, nextFolder.name, true);
+                                const nextIdx = (allFolders.findIndex(f => f.id === currentFolderId) + 1) % allFolders.length;
+                                loadSongs(allFolders[nextIdx].id, allFolders[nextIdx].name, true);
                             }
                         }, 500);
                         return;
                     }
                 }
-
                 if (autoPlay && playlist.length > 0) {
-                    if(playScope === 'all' && isShuffle) {
-                        playTrack(Math.floor(Math.random() * playlist.length));
-                    } else {
-                        playTrack(0);
-                    }
+                    playTrack(isShuffle ? Math.floor(Math.random() * playlist.length) : 0);
                 }
             } catch(e) { console.error(e); }
         }
 
         function resumeOrPlay() {
-            // 強制的にContextを再開
             initAudioContext();
             if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-
             if (audio.src && audio.src !== window.location.href) {
-                // エラーで止まっていた場合のリロード
-                if (audio.error) {
-                    audio.load(); 
-                }
-                audio.play().catch(e => console.log("Play failed, need load"));
+                if (audio.error) audio.load();
+                audio.play().catch(e => console.log("Play failed"));
             } else if (playlist.length > 0) {
                 playTrack(currentIndex);
             }
         }
 
         function playTrack(index) {
-            // ユーザーアクション時に必ずContextを再開
             initAudioContext();
             if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-
             if (playlist.length === 0) return;
             currentIndex = index;
             const track = playlist[index];
-            
             document.querySelectorAll('#song-list .item-btn').forEach(el => el.classList.remove('playing'));
-            const activeBtn = document.getElementById(`song-${index}`);
-            if (activeBtn) {
-                activeBtn.classList.add('playing');
-                activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
+            document.getElementById(`song-${index}`)?.classList.add('playing');
+            document.getElementById(`song-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             document.getElementById('song-title').innerText = track.name;
-
-            // ★重要: 古いバッファを強制破棄
             audio.pause();
             audio.removeAttribute('src');
             audio.load(); 
-
             const fetchUrl = `https://www.googleapis.com/drive/v3/files/${track.id}?alt=media`;
             fetch(fetchUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } })
                 .then(r => { 
-                    if (r.status === 401) { throw new Error('401'); } // 401はcatchブロックへ
+                    if (r.status === 401) throw new Error('401');
                     if (!r.ok) throw new Error(r.status); 
                     return r.blob(); 
                 })
                 .then(blob => {
                     audio.src = URL.createObjectURL(blob);
                     audio.volume = volumeSlider.value;
-                    
-                    const playPromise = audio.play();
-                    if (playPromise !== undefined) {
-                        playPromise.catch(error => {
-                            console.log("Auto-play prevented or interrupted:", error);
-                        });
-                    }
+                    audio.play().catch(e => console.log("Interrupted"));
                     updateMediaSession(track.name);
                 })
                 .catch(err => {
-                    console.error("Play error:", err);
-                    if(err.message === '401' || err.message.includes('401')) {
-                        // ★自動復旧ポイント
-                        refreshAccessToken(); 
-                    }
+                    if(err.message.includes('401')) refreshAccessToken();
                 });
         }
 
-        // ... nextTrack, prevTrack, changeScope, toggleRepeat, changeMode ...
-        // これらは変更なしのため省略せず記述
-        
         function nextTrack() {
             if (repeatMode === 2) { playTrack(currentIndex); return; }
             if (playScope === 'all' && isShuffle) {
-                const randomFolder = allFolders[Math.floor(Math.random() * allFolders.length)];
-                loadSongs(randomFolder.id, randomFolder.name, true);
+                loadSongs(allFolders[Math.floor(Math.random() * allFolders.length)].id, "", true);
                 return;
             }
             let next = isShuffle ? Math.floor(Math.random() * playlist.length) : (currentIndex + 1);
             if (next >= playlist.length) {
                 if (repeatMode === 1) next = 0; 
                 else if (playScope === 'all') {
-                    const currentFolderIndex = allFolders.findIndex(f => f.id === currentFolderId);
-                    const nextFolderIndex = (currentFolderIndex + 1) % allFolders.length;
-                    loadSongs(allFolders[nextFolderIndex].id, allFolders[nextFolderIndex].name, true);
+                    const nextIdx = (allFolders.findIndex(f => f.id === currentFolderId) + 1) % allFolders.length;
+                    loadSongs(allFolders[nextIdx].id, allFolders[nextIdx].name, true);
                     return;
                 } else { audio.pause(); return; }
             }
@@ -469,13 +414,9 @@
             }, mins * 60000);
         }
         function skip(s) { audio.currentTime += s; }
-        
         audio.onended = nextTrack;
         audio.onplay = () => updatePlayPauseUI(true);
         audio.onpause = () => updatePlayPauseUI(false);
-        // エラー発生時は次へ行かずに止める（無限ループ防止）か、ユーザー操作を待つ
-        audio.onerror = () => { console.log("Audio Error"); };
-
         function updatePlayPauseUI(isPlaying) {
             const bigPlay = document.getElementById('big-play-btn');
             const pauseBtn = document.getElementById('btn-pause');
@@ -485,7 +426,6 @@
                 bigPlay.classList.remove('active'); bigPlay.innerText = "再生"; pauseBtn.classList.add('active');
             }
         }
-
         function updateMediaSession(title) {
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.metadata = new MediaMetadata({ title, artist: 'G-Drive Music' });
@@ -495,14 +435,6 @@
                 navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
             }
         }
-
-        // 画面復帰時のチェック
-        document.addEventListener("visibilitychange", () => {
-            if (document.visibilityState === "visible") {
-                // トークンが切れていそうならリフレッシュしておくのも手だが、
-                // 再生ボタンを押した瞬間にrefreshAccessToken()が走るようにplayTrackで制御済み
-            }
-        });
     </script>
     <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
     <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
