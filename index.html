@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Music Ver.1.5.8</title>
+    <title>G-Drive Music Ver.1.5.8.1</title>
     <style>
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 10px; position: relative; }
         .version-tag { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; color: #666; }
@@ -72,7 +72,7 @@
 </head>
 <body>
 
-    <div class="version-tag">Ver.1.5.8</div>
+    <div class="version-tag">Ver.1.5.8.1</div>
     <h1>G-Drive Music</h1>
     
     <button id="auth-btn" class="hidden" onclick="handleAuthClick()" style="max-width:200px; margin:20px auto;">Googleドライブに接続</button>
@@ -84,7 +84,7 @@
             <button onclick="changeMode('shuffle')" id="mode-shuffle">シャッフル</button>
             <button onclick="toggleRepeat()" id="repeat-btn">リピート: OFF</button>
             
-            <button onclick="prevTrack()">前へ</button>
+            <button onclick="prevTrack()">戻り</button>
             <button onclick="skip(10)">+10秒</button>
             <select id="sleep-timer" onchange="setSleepTimer()">
                 <option value="0">タイマー: OFF</option>
@@ -94,7 +94,7 @@
                 <option value="180">180分後</option>
             </select>
             
-            <button onclick="nextTrack()">次へ</button>
+            <button onclick="nextTrack()">送り</button>
             <button onclick="skip(-10)">-10秒</button>
             <button onclick="audio.pause()" id="btn-pause">一時停止</button>
         </div>
@@ -414,9 +414,12 @@
             }, mins * 60000);
         }
         function skip(s) { audio.currentTime += s; }
+        
         audio.onended = nextTrack;
         audio.onplay = () => updatePlayPauseUI(true);
         audio.onpause = () => updatePlayPauseUI(false);
+        audio.onerror = () => { console.log("Audio Error"); };
+
         function updatePlayPauseUI(isPlaying) {
             const bigPlay = document.getElementById('big-play-btn');
             const pauseBtn = document.getElementById('btn-pause');
@@ -426,13 +429,25 @@
                 bigPlay.classList.remove('active'); bigPlay.innerText = "再生"; pauseBtn.classList.add('active');
             }
         }
+
+        // ★ MediaSession APIによるロック画面連携 ★
         function updateMediaSession(title) {
             if ('mediaSession' in navigator) {
-                navigator.mediaSession.metadata = new MediaMetadata({ title, artist: 'G-Drive Music' });
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: title,
+                    artist: 'G-Drive Music',
+                    // artwork: [{ src: 'icon.png', sizes: '96x96', type: 'image/png' }] // 必要に応じてアイコン画像を指定
+                });
+                
+                // ロック画面のボタン操作とアプリ内の関数を紐付け
                 navigator.mediaSession.setActionHandler('play', () => { resumeOrPlay(); });
-                navigator.mediaSession.setActionHandler('pause', () => audio.pause());
-                navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
-                navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
+                navigator.mediaSession.setActionHandler('pause', () => { audio.pause(); });
+                navigator.mediaSession.setActionHandler('previoustrack', prevTrack); // 「戻り」ボタンで前の曲へ
+                navigator.mediaSession.setActionHandler('nexttrack', nextTrack); // 「送り」ボタンで次の曲へ
+                
+                // 10秒スキップもロック画面で使えるように設定
+                navigator.mediaSession.setActionHandler('seekbackward', () => skip(-10));
+                navigator.mediaSession.setActionHandler('seekforward', () => skip(10));
             }
         }
     </script>
