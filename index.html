@@ -3,60 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Music Ver.1.5.9.5</title>
+    <title>G-Drive Music Ver.1.5.9.6</title>
     <style>
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 10px; position: relative; display: flex; flex-direction: column; height: 95vh; }
         .version-tag { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; color: #666; }
         h1 { font-size: 1.1rem; margin: 5px 0; color: #888; }
-        
         #song-title { margin: 10px 0; font-weight: bold; color: #1DB954; font-size: 1.1rem; min-height: 2.4em; display: flex; align-items: center; justify-content: center; padding: 0 10px; }
-        
         .content-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 8px; max-width: 600px; margin: 0 auto 10px; flex-grow: 1; min-height: 0; width: 100%; }
         .list-box { background: #1e1e1e; border-radius: 8px; overflow-y: auto; border: 1px solid #333; text-align: left; padding: 5px; display: flex; flex-direction: column; }
         .list-box h4 { font-size: 0.75rem; margin: 3px; color: #666; border-bottom: 1px solid #333; padding-bottom: 3px; text-align: center; flex-shrink: 0; }
         .scroll-area { flex-grow: 1; overflow-y: auto; }
-        
         .item-btn { width: 100%; text-align: left; background: transparent; padding: 12px 5px; border-radius: 4px; font-size: 13px; border-bottom: 1px solid #252525; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: #ccc; }
         .item-btn:active { background: #333; }
         .item-btn.playing { color: #1DB954; font-weight: bold; background: #222; }
         .item-btn.current-folder { color: #fff; border-left: 3px solid #1DB954; }
-
         .bottom-controls { flex-shrink: 0; padding-top: 10px; background: #121212; }
         .control-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-width: 450px; margin: 0 auto 8px; }
         button, select { background: #333; color: white; border: none; padding: 12px 2px; border-radius: 6px; cursor: pointer; font-size: 13px; width: 100%; }
         button:active { background: #555; transform: scale(0.96); }
         button.active { background: #1DB954; color: #fff; font-weight: bold; }
         select { text-align: center; text-align-last: center; appearance: none; border: 1px solid #444; }
-
         .big-play-btn { width: 100%; max-width: 450px; margin: 0 auto 8px; display: block; background: #333; font-size: 1.2rem; font-weight: bold; padding: 15px; }
         .big-play-btn.active { background: #1DB954; }
-
         .scope-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-width: 450px; margin: 0 auto 8px; }
         .scope-btn { background: #222; border: 1px solid #444; color: #888; }
         .scope-btn.active { background: #1DB954; color: white; border-color: #1DB954; }
-
         .volume-controls { max-width: 450px; margin: 0 auto 8px; display: flex; align-items: center; gap: 10px; background: #222; padding: 8px 15px; border-radius: 6px; }
         .volume-label { font-size: 0.7rem; color: #aaa; }
         input[type=range] { width: 100%; cursor: pointer; accent-color: #1DB954; height: 4px; }
-
         #visualizer-container { max-width: 450px; margin: 0 auto 5px; height: 40px; background: #1a1a1a; border-radius: 4px; overflow: hidden; border: 1px solid #333; }
         #visualizer { width: 100%; height: 100%; display: block; }
-
         .hidden { display: none !important; }
         #auth-btn { background: #1DB954; color: white; font-weight: bold; border: 1px solid #fff; padding: 15px; width: 80%; }
         .timer-info { max-width: 450px; margin: 0 auto 5px; font-size: 0.7rem; color: #888; min-height: 1em; }
     </style>
 </head>
 <body>
-
-    <div class="version-tag">Ver.1.5.9.5</div>
+    <div class="version-tag">Ver.1.5.9.6</div>
     <h1>G-Drive Music</h1>
-    
     <button id="auth-btn" class="hidden" onclick="handleAuthClick()" style="max-width:200px; margin:20px auto;">Googleドライブに接続</button>
     <div id="song-title">接続中...</div>
-
     <div id="main-ui" class="hidden" style="display: flex; flex-direction: column; flex-grow: 1; min-height: 0;">
-        
         <div class="content-grid">
             <div class="list-box">
                 <h4>フォルダ</h4>
@@ -67,11 +54,8 @@
                 <div id="song-list" class="scroll-area"></div>
             </div>
         </div>
-
         <div class="bottom-controls">
-            <div id="visualizer-container">
-                <canvas id="visualizer"></canvas>
-            </div>
+            <div id="visualizer-container"><canvas id="visualizer"></canvas></div>
             <div id="timer-display" class="timer-info"></div>
             <div class="control-grid">
                 <button onclick="changeMode('normal')" id="mode-normal" class="active">順次</button>
@@ -101,7 +85,6 @@
             </div>
         </div>
     </div>
-
     <audio id="audio-player" crossorigin="anonymous"></audio>
 
     <script>
@@ -109,9 +92,6 @@
         const PARENT_ID = '1t5V8v-i-cYsOG9DcDveR2SzJp1JO5Uwj';
         const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
         const STORE_KEY = 'gdrive_music_state';
-
-        // ★ 対応拡張子の定義 (これ以外はリストに表示しない)
-        const SUPPORTED_EXTENSIONS = ['.mp3', '.m4a', '.wav', '.ogg', '.aac', '.flac', '.weba'];
 
         let tokenClient, accessToken = null;
         let allFolders = [], playlist = [], currentIndex = 0;
@@ -127,7 +107,6 @@
 
         const audio = document.getElementById('audio-player');
         const volumeSlider = document.getElementById('volume-slider');
-
         let audioCtx, analyser, dataArray, canvas, canvasCtx, animationId;
         let isAudioContextInitialized = false;
 
@@ -148,17 +127,11 @@
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID, scope: SCOPES,
                 callback: (resp) => {
-                    if (resp.error) { 
-                        document.getElementById('auth-btn').classList.remove('hidden'); 
-                        document.getElementById('song-title').innerText = "ボタンを押して接続してください";
-                        return; 
-                    }
+                    if (resp.error) { document.getElementById('auth-btn').classList.remove('hidden'); return; }
                     accessToken = resp.access_token;
                     document.getElementById('auth-btn').classList.add('hidden');
                     document.getElementById('main-ui').classList.remove('hidden');
-                    
                     startTokenAutoRefresh();
-
                     if (isRetry) { isRetry = false; if(playlist.length > 0) playTrack(currentIndex); else initApp(); }
                     else initApp();
                 },
@@ -168,11 +141,7 @@
 
         function startTokenAutoRefresh() {
             if (tokenRefreshInterval) clearInterval(tokenRefreshInterval);
-            console.log("Token Auto-Refresh Started");
-            tokenRefreshInterval = setInterval(() => {
-                console.log("Auto refreshing token...");
-                tokenClient.requestAccessToken({ prompt: '' });
-            }, 50 * 60 * 1000); 
+            tokenRefreshInterval = setInterval(() => { tokenClient.requestAccessToken({ prompt: '' }); }, 50 * 60 * 1000); 
         }
 
         function handleAuthClick() { tokenClient.requestAccessToken({ prompt: 'select_account' }); }
@@ -184,10 +153,8 @@
             if (saved.repeatMode !== undefined) { repeatMode = saved.repeatMode - 1; toggleRepeat(); }
             if (saved.playScope !== undefined) changeScope(saved.playScope);
             if (saved.volume !== undefined) { volumeSlider.value = saved.volume; audio.volume = saved.volume; }
-            
             changeMode(isShuffle ? 'shuffle' : 'normal');
             setupMediaSessionHandlers();
-
             canvas = document.getElementById('visualizer');
             canvasCtx = canvas.getContext('2d');
             resizeCanvas();
@@ -210,11 +177,10 @@
                 dataArray = new Uint8Array(analyser.frequencyBinCount);
                 isAudioContextInitialized = true;
                 drawVisualizer();
-            } catch(e) { console.error("Visualizer Error:", e); }
+            } catch(e) { console.error(e); }
         }
 
         function resizeCanvas() { canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; }
-
         function drawVisualizer() {
             animationId = requestAnimationFrame(drawVisualizer);
             if(!analyser) return;
@@ -222,8 +188,7 @@
             canvasCtx.fillStyle = '#1a1a1a';
             canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
             const barWidth = (canvas.width / dataArray.length) * 2.5;
-            let barHeight;
-            let x = 0;
+            let barHeight; let x = 0;
             for(let i = 0; i < dataArray.length; i++) {
                 barHeight = (dataArray[i] / 255) * canvas.height;
                 canvasCtx.fillStyle = '#1DB954';
@@ -253,16 +218,12 @@
                 if(resp.status === 401) { refreshAccessToken(); return; }
                 const data = await resp.json();
                 allFolders = data.files.sort((a,b)=>a.name.localeCompare(b.name,'ja'));
-                const listEl = document.getElementById('folder-list');
-                listEl.innerHTML = '';
+                const listEl = document.getElementById('folder-list'); listEl.innerHTML = '';
                 allFolders.forEach(f => {
-                    const btn = document.createElement('div');
-                    btn.className = 'item-btn';
+                    const btn = document.createElement('div'); btn.className = 'item-btn';
                     if(f.id === currentFolderId) btn.classList.add('current-folder');
-                    btn.id = `folder-${f.id}`;
-                    btn.innerText = "📁 " + f.name;
-                    btn.onclick = () => loadSongs(f.id, f.name, true);
-                    listEl.appendChild(btn);
+                    btn.id = `folder-${f.id}`; btn.innerText = "📁 " + f.name;
+                    btn.onclick = () => loadSongs(f.id, f.name, true); listEl.appendChild(btn);
                 });
             } catch(e) { console.error(e); }
         }
@@ -274,55 +235,38 @@
             document.getElementById(`folder-${folderId}`)?.classList.add('current-folder');
             try {
                 const query = `'${folderId}' in parents and mimeType contains 'audio/'`;
-                const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,mimeType)`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
                 if(resp.status === 401) { refreshAccessToken(); return; }
                 const data = await resp.json();
                 
-                // ★ 修正: 対応拡張子フィルタリング
+                // ★ 修正: ブラウザが再生可能と判定した全形式を許可
                 playlist = data.files.filter(file => {
-                    const lowerName = file.name.toLowerCase();
-                    return SUPPORTED_EXTENSIONS.some(ext => lowerName.endsWith(ext));
+                    // mimeTypeで判定 (audio/mpeg, audio/mp4, audio/wav, audio/flac等)
+                    return audio.canPlayType(file.mimeType) !== "";
                 }).sort((a,b) => a.name.localeCompare(b.name,'ja'));
                 
                 generateShuffleIndices();
-
-                const listEl = document.getElementById('song-list');
-                listEl.innerHTML = '';
+                const listEl = document.getElementById('song-list'); listEl.innerHTML = '';
                 playlist.forEach((s, idx) => {
-                    const btn = document.createElement('div');
-                    btn.className = 'item-btn'; btn.id = `song-${idx}`; btn.innerText = s.name;
-                    btn.onclick = () => playTrack(idx);
-                    listEl.appendChild(btn);
+                    const btn = document.createElement('div'); btn.className = 'item-btn'; btn.id = `song-${idx}`; btn.innerText = s.name;
+                    btn.onclick = () => playTrack(idx); listEl.appendChild(btn);
                 });
                 document.getElementById('song-title').innerText = `${folderName} (${playlist.length}曲)`;
-                
                 if (playlist.length === 0 && autoPlay && playScope === 'all') {
                     setTimeout(() => { 
-                        if (isShuffle) {
-                             const randomFolder = allFolders[Math.floor(Math.random() * allFolders.length)];
-                             loadSongs(randomFolder.id, randomFolder.name, true);
-                        } else {
-                            const nextIdx = (allFolders.findIndex(f => f.id === currentFolderId) + 1) % allFolders.length;
-                            loadSongs(allFolders[nextIdx].id, allFolders[nextIdx].name, true);
-                        }
+                        const nextIdx = isShuffle ? Math.floor(Math.random() * allFolders.length) : (allFolders.findIndex(f => f.id === currentFolderId) + 1) % allFolders.length;
+                        loadSongs(allFolders[nextIdx].id, allFolders[nextIdx].name, true);
                     }, 500);
                     return;
                 }
-                
-                if (autoPlay && playlist.length > 0) {
-                    if (isShuffle) {
-                        playTrack(shuffleIndices[0]);
-                    } else {
-                        playTrack(0);
-                    }
-                }
+                if (autoPlay && playlist.length > 0) playTrack(isShuffle ? shuffleIndices[0] : 0);
             } catch(e) { console.error(e); }
         }
 
         function resumeOrPlay() {
             initAudioContext();
             if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-            if (audio.src && audio.src !== window.location.href) { if (audio.error) audio.load(); audio.play().catch(e => console.log("Play failed")); }
+            if (audio.src && audio.src !== window.location.href) { if (audio.error) audio.load(); audio.play().catch(e => {}); }
             else if (playlist.length > 0) playTrack(currentIndex);
         }
 
@@ -330,96 +274,66 @@
             initAudioContext();
             if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
             if (playlist.length === 0) return;
-            
             currentIndex = index;
-            
             if (isShuffle) {
                 const foundIdx = shuffleIndices.indexOf(index);
                 if (foundIdx !== -1) shuffleIndex = foundIdx;
             }
-
             const track = playlist[index];
             document.querySelectorAll('#song-list .item-btn').forEach(el => el.classList.remove('playing'));
             const targetBtn = document.getElementById(`song-${index}`);
             if (targetBtn) { targetBtn.classList.add('playing'); targetBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
-            
             document.getElementById('song-title').innerText = track.name + " (読込中...)";
-            
             if ('mediaSession' in navigator) {
-                navigator.mediaSession.metadata = new MediaMetadata({
-                    title: track.name, artist: 'G-Drive Music', album: currentFolderName,
-                    artwork: [{ src: ARTWORK_DATA, sizes: '64x64', type: 'image/png' }]
-                });
+                navigator.mediaSession.metadata = new MediaMetadata({ title: track.name, artist: 'G-Drive Music', album: currentFolderName, artwork: [{ src: ARTWORK_DATA, sizes: '64x64', type: 'image/png' }] });
                 navigator.mediaSession.playbackState = 'playing'; 
                 try { navigator.mediaSession.setPositionState(); } catch(e) {} 
             }
-
             audio.pause();
-            if (audio.src && audio.src.startsWith('blob:')) {
-                URL.revokeObjectURL(audio.src);
-            }
-            audio.removeAttribute('src'); 
-            audio.load(); 
-
+            if (audio.src && audio.src.startsWith('blob:')) URL.revokeObjectURL(audio.src);
+            audio.removeAttribute('src'); audio.load(); 
             const fetchUrl = `https://www.googleapis.com/drive/v3/files/${track.id}?alt=media`;
             fetch(fetchUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } })
-                .then(r => { if (r.status === 401) throw new Error('401'); if (!r.ok) throw new Error(r.status); return r.blob(); })
+                .then(r => { if (r.status === 401) throw new Error('401'); return r.blob(); })
                 .then(blob => {
-                    audio.src = URL.createObjectURL(blob);
-                    audio.volume = volumeSlider.value;
+                    audio.src = URL.createObjectURL(blob); audio.volume = volumeSlider.value;
                     document.getElementById('song-title').innerText = track.name;
-                    audio.play().catch(e => console.log("Interrupted"));
-                })
-                .catch(err => { if(err.message.includes('401')) refreshAccessToken(); });
+                    audio.play().catch(e => {});
+                }).catch(err => { if(err.message.includes('401')) refreshAccessToken(); });
         }
 
         function nextTrack() {
             if (repeatMode === 2) { playTrack(currentIndex); return; }
-            
-            if (playScope === 'all' && isShuffle && playlist.length === 0) {
-                 loadSongs(allFolders[Math.floor(Math.random() * allFolders.length)].id, "", true); 
-                 return;
-            }
-
-            let next;
             if (isShuffle) {
                 shuffleIndex++;
                 if (shuffleIndex >= shuffleIndices.length) {
                     if (playScope === 'all') {
                         const randomFolder = allFolders[Math.floor(Math.random() * allFolders.length)];
-                        loadSongs(randomFolder.id, randomFolder.name, true);
-                        return;
-                    } else if (repeatMode === 1) { 
-                        generateShuffleIndices();
-                        shuffleIndex = 0;
-                    } else { 
-                        audio.pause(); 
-                        return;
-                    }
+                        loadSongs(randomFolder.id, randomFolder.name, true); return;
+                    } else if (repeatMode === 1) { generateShuffleIndices(); shuffleIndex = 0; }
+                    else { audio.pause(); return; }
                 }
-                next = shuffleIndices[shuffleIndex];
+                playTrack(shuffleIndices[shuffleIndex]);
             } else {
-                next = currentIndex + 1;
+                let next = currentIndex + 1;
                 if (next >= playlist.length) {
                     if (repeatMode === 1) next = 0; 
                     else if (playScope === 'all') {
                         const nextIdx = (allFolders.findIndex(f => f.id === currentFolderId) + 1) % allFolders.length;
-                        loadSongs(allFolders[nextIdx].id, allFolders[nextIdx].name, true);
-                        return;
+                        loadSongs(allFolders[nextIdx].id, allFolders[nextIdx].name, true); return;
                     } else { audio.pause(); return; }
                 }
+                playTrack(next);
             }
-            playTrack(next);
         }
 
+        // ★ 修正: シャッフル履歴を考慮した正確な「戻る」
         function prevTrack() { 
+            if (audio.currentTime > 3) { audio.currentTime = 0; return; }
             if (isShuffle) {
                 if (shuffleIndex > 0) {
-                    shuffleIndex--;
-                    playTrack(shuffleIndices[shuffleIndex]);
-                } else {
-                    playTrack(shuffleIndices[0]);
-                }
+                    shuffleIndex--; playTrack(shuffleIndices[shuffleIndex]);
+                } else { playTrack(shuffleIndices[0]); }
             } else {
                 playTrack((currentIndex - 1 + playlist.length) % playlist.length); 
             }
@@ -430,21 +344,16 @@
             repeatMode = (repeatMode + 1) % 3;
             const labels = ["OFF", "ALL", "1曲"];
             document.getElementById('repeat-btn').innerText = "リピート: " + labels[repeatMode];
-            document.getElementById('repeat-btn').classList.toggle('active', repeatMode > 0);
-            saveSettings();
+            document.getElementById('repeat-btn').classList.toggle('active', repeatMode > 0); saveSettings();
         }
         function changeMode(m) { 
             isShuffle = (m === 'shuffle'); 
             document.getElementById('mode-shuffle').classList.toggle('active', isShuffle); 
             document.getElementById('mode-normal').classList.toggle('active', !isShuffle); 
-            
-            if (isShuffle) {
+            if (isShuffle && playlist.length > 0) {
                 generateShuffleIndices();
-                const currentInShuffle = shuffleIndices.indexOf(currentIndex);
-                if (currentInShuffle !== -1) {
-                    [shuffleIndices[0], shuffleIndices[currentInShuffle]] = [shuffleIndices[currentInShuffle], shuffleIndices[0]];
-                    shuffleIndex = 0;
-                }
+                const cur = shuffleIndices.indexOf(currentIndex);
+                if (cur !== -1) { [shuffleIndices[0], shuffleIndices[cur]] = [shuffleIndices[cur], shuffleIndices[0]]; shuffleIndex = 0; }
             }
             saveSettings(); 
         }
@@ -465,48 +374,22 @@
         audio.onended = nextTrack;
         audio.onplay = () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; updatePlayPauseUI(true); };
         audio.onpause = () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; updatePlayPauseUI(false); };
-        audio.onerror = (e) => { 
-            console.log("Playback Error, skipping...");
-            setTimeout(() => { nextTrack(); }, 1000); 
-        };
+        audio.onerror = () => { setTimeout(() => { nextTrack(); }, 1000); };
         audio.onwaiting = () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; };
 
         function setupMediaSessionHandlers() {
             if ('mediaSession' in navigator) {
-                const handlers = [
-                    ['play', () => { navigator.mediaSession.playbackState = 'playing'; resumeOrPlay(); }],
-                    ['pause', () => { navigator.mediaSession.playbackState = 'paused'; audio.pause(); }],
-                    ['previoustrack', prevTrack],
-                    ['nexttrack', nextTrack],
-                    ['seekbackward', () => skip(-10)],
-                    ['seekforward', () => skip(10)]
-                ];
-                for (const [action, handler] of handlers) {
-                    try { navigator.mediaSession.setActionHandler(action, handler); } catch (e) {}
-                }
+                const handlers = [['play', resumeOrPlay], ['pause', () => audio.pause()], ['previoustrack', prevTrack], ['nexttrack', nextTrack], ['seekbackward', () => skip(-10)], ['seekforward', () => skip(10)]];
+                for (const [action, handler] of handlers) { try { navigator.mediaSession.setActionHandler(action, handler); } catch (e) {} }
             }
         }
-
-        audio.addEventListener('loadedmetadata', () => { 
-            if ('mediaSession' in navigator && !isNaN(audio.duration) && audio.duration !== Infinity) { 
-                navigator.mediaSession.setPositionState({ duration: audio.duration, playbackRate: audio.playbackRate, position: 0 }); 
-            } 
-        });
-
+        audio.addEventListener('loadedmetadata', () => { if ('mediaSession' in navigator && !isNaN(audio.duration) && audio.duration !== Infinity) { navigator.mediaSession.setPositionState({ duration: audio.duration, playbackRate: audio.playbackRate, position: 0 }); } });
         if ('mediaSession' in navigator) {
             audio.addEventListener('timeupdate', () => { 
-                const now = Date.now();
-                if (now - lastPositionUpdate < 1000) return;
-                lastPositionUpdate = now;
-
-                if (!isNaN(audio.duration) && audio.duration !== Infinity && !isNaN(audio.currentTime)) { 
-                    try {
-                        navigator.mediaSession.setPositionState({ duration: audio.duration, playbackRate: audio.playbackRate, position: audio.currentTime }); 
-                    } catch(e) {}
-                } 
+                const now = Date.now(); if (now - lastPositionUpdate < 1000) return; lastPositionUpdate = now;
+                if (!isNaN(audio.duration) && audio.duration !== Infinity && !isNaN(audio.currentTime)) { try { navigator.mediaSession.setPositionState({ duration: audio.duration, playbackRate: audio.playbackRate, position: audio.currentTime }); } catch(e) {} } 
             });
         }
-
         function updatePlayPauseUI(isPlaying) {
             const bigPlay = document.getElementById('big-play-btn'); const pauseBtn = document.getElementById('btn-pause');
             if (isPlaying) { bigPlay.classList.add('active'); bigPlay.innerText = "再生中"; pauseBtn.classList.remove('active'); }
