@@ -331,4 +331,45 @@
         function skip(s) { audio.currentTime += s; }
         
         audio.onended = nextTrack;
-        audio.onplay = () => { if('mediaSession' in navigator) navigator.mediaSession.
+        audio.onplay = () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; updatePlayPauseUI(true); };
+        audio.onpause = () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; updatePlayPauseUI(false); };
+        audio.onerror = (e) => { setTimeout(() => { nextTrack(); }, 1000); };
+        
+        // ★ バッファリング中も「再生中」扱いを維持してボタンを殺さない
+        audio.onwaiting = () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; };
+
+        function updateMediaSession(title) {
+            if ('mediaSession' in navigator) {
+                // ロック画面操作を曲情報の確定前から先行受付
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: title, artist: 'G-Drive Music', album: currentFolderName,
+                    artwork: [{ src: ARTWORK_DATA, sizes: '64x64', type: 'image/png' }]
+                });
+                const handlers = [
+                    ['play', () => { navigator.mediaSession.playbackState = 'playing'; resumeOrPlay(); }],
+                    ['pause', () => { navigator.mediaSession.playbackState = 'paused'; audio.pause(); }],
+                    ['previoustrack', prevTrack],
+                    ['nexttrack', nextTrack],
+                    ['seekbackward', () => skip(-10)],
+                    ['seekforward', () => skip(10)]
+                ];
+                handlers.forEach(([action, handler]) => { try { navigator.mediaSession.setActionHandler(action, handler); } catch(e) {} });
+            }
+        }
+
+        audio.addEventListener('loadedmetadata', () => { if ('mediaSession' in navigator && !isNaN(audio.duration)) { navigator.mediaSession.setPositionState({ duration: audio.duration, playbackRate: audio.playbackRate, position: 0 }); } });
+
+        if ('mediaSession' in navigator) {
+            audio.addEventListener('timeupdate', () => { if (!isNaN(audio.duration) && !isNaN(audio.currentTime)) { navigator.mediaSession.setPositionState({ duration: audio.duration, playbackRate: audio.playbackRate, position: audio.currentTime }); } });
+        }
+
+        function updatePlayPauseUI(isPlaying) {
+            const bigPlay = document.getElementById('big-play-btn'); const pauseBtn = document.getElementById('btn-pause');
+            if (isPlaying) { bigPlay.classList.add('active'); bigPlay.innerText = "再生中"; pauseBtn.classList.remove('active'); }
+            else { bigPlay.classList.remove('active'); bigPlay.innerText = "再生"; pauseBtn.classList.add('active'); }
+        }
+    </script>
+    <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+    <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+</body>
+</html>
