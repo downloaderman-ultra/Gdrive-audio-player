@@ -5,126 +5,109 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>G-Drive Music Ver.1.5.8.8</title>
     <style>
-        body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 10px; position: relative; }
+        body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 10px; position: relative; display: flex; flex-direction: column; height: 95vh; }
         .version-tag { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; color: #666; }
-        h1 { font-size: 1.2rem; margin: 10px 0; }
+        h1 { font-size: 1.1rem; margin: 5px 0; color: #888; }
         
-        #song-title { margin: 15px 0; font-weight: bold; color: #1DB954; font-size: 1.1rem; min-height: 2.4em; display: flex; align-items: center; justify-content: center; padding: 0 10px; }
+        #song-title { margin: 10px 0; font-weight: bold; color: #1DB954; font-size: 1.1rem; min-height: 2.4em; display: flex; align-items: center; justify-content: center; padding: 0 10px; }
         
-        .control-grid { 
-            display: grid; 
-            grid-template-columns: repeat(3, 1fr); 
-            gap: 8px; 
-            max-width: 450px; 
-            margin: 0 auto 10px; 
-        }
-        
-        button, select { 
-            background: #333; color: white; border: none; padding: 12px 2px; 
-            border-radius: 6px; cursor: pointer; font-size: 13px; width: 100%;
-            transition: 0.1s;
-        }
-        button:active { background: #555; transform: scale(0.98); }
-        button.active { background: #1DB954; color: #fff; font-weight: bold; }
-        
-        select { text-align: center; text-align-last: center; appearance: none; border: 1px solid #444; }
-
-        .big-play-btn {
-            width: 100%; max-width: 450px; margin: 0 auto 8px; display: block;
-            background: #333; font-size: 1.2rem; font-weight: bold; padding: 15px;
-        }
-        .big-play-btn.active { background: #1DB954; }
-
-        .scope-controls {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
-            max-width: 450px; margin: 0 auto 10px;
-        }
-        .scope-btn { background: #222; border: 1px solid #444; color: #888; }
-        .scope-btn.active { background: #1DB954; color: white; border-color: #1DB954; }
-
-        .volume-controls {
-            max-width: 450px; margin: 0 auto 10px;
-            display: flex; align-items: center; gap: 10px;
-            background: #222; padding: 8px 15px; border-radius: 6px;
-        }
-        .volume-label { font-size: 0.8rem; color: #aaa; white-space: nowrap; }
-        input[type=range] { width: 100%; cursor: pointer; accent-color: #1DB954; height: 4px; }
-
-        #visualizer-container {
-            max-width: 600px; margin: 0 auto 10px;
-            height: 60px; background: #1a1a1a; border-radius: 8px;
-            overflow: hidden; border: 1px solid #333;
-        }
-        #visualizer { width: 100%; height: 100%; display: block; }
-
-        .content-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; max-width: 600px; margin: 0 auto; height: 40vh; }
-        .list-box { background: #1e1e1e; border-radius: 8px; overflow-y: auto; border: 1px solid #333; text-align: left; padding: 5px; }
-        .list-box h4 { font-size: 0.8rem; margin: 5px; color: #888; border-bottom: 1px solid #333; padding-bottom: 3px; text-align: center; }
+        /* リストエリアを上部に配置 */
+        .content-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 8px; max-width: 600px; margin: 0 auto 10px; flex-grow: 1; min-height: 0; width: 100%; }
+        .list-box { background: #1e1e1e; border-radius: 8px; overflow-y: auto; border: 1px solid #333; text-align: left; padding: 5px; display: flex; flex-direction: column; }
+        .list-box h4 { font-size: 0.75rem; margin: 3px; color: #666; border-bottom: 1px solid #333; padding-bottom: 3px; text-align: center; flex-shrink: 0; }
+        .scroll-area { flex-grow: 1; overflow-y: auto; }
         
         .item-btn { width: 100%; text-align: left; background: transparent; padding: 12px 5px; border-radius: 4px; font-size: 13px; border-bottom: 1px solid #252525; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: #ccc; }
         .item-btn:active { background: #333; }
         .item-btn.playing { color: #1DB954; font-weight: bold; background: #222; }
         .item-btn.current-folder { color: #fff; border-left: 3px solid #1DB954; }
 
+        /* 操作パネルを下部に集中 */
+        .bottom-controls { flex-shrink: 0; padding-top: 10px; background: #121212; }
+
+        .control-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-width: 450px; margin: 0 auto 8px; }
+        button, select { background: #333; color: white; border: none; padding: 12px 2px; border-radius: 6px; cursor: pointer; font-size: 13px; width: 100%; }
+        button:active { background: #555; transform: scale(0.96); }
+        button.active { background: #1DB954; color: #fff; font-weight: bold; }
+        select { text-align: center; text-align-last: center; appearance: none; border: 1px solid #444; }
+
+        .big-play-btn { width: 100%; max-width: 450px; margin: 0 auto 8px; display: block; background: #333; font-size: 1.2rem; font-weight: bold; padding: 15px; }
+        .big-play-btn.active { background: #1DB954; }
+
+        .scope-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-width: 450px; margin: 0 auto 8px; }
+        .scope-btn { background: #222; border: 1px solid #444; color: #888; }
+        .scope-btn.active { background: #1DB954; color: white; border-color: #1DB954; }
+
+        .volume-controls { max-width: 450px; margin: 0 auto 8px; display: flex; align-items: center; gap: 10px; background: #222; padding: 8px 15px; border-radius: 6px; }
+        .volume-label { font-size: 0.7rem; color: #aaa; }
+        input[type=range] { width: 100%; cursor: pointer; accent-color: #1DB954; height: 4px; }
+
+        #visualizer-container { max-width: 450px; margin: 0 auto 5px; height: 40px; background: #1a1a1a; border-radius: 4px; overflow: hidden; border: 1px solid #333; }
+        #visualizer { width: 100%; height: 100%; display: block; }
+
         .hidden { display: none !important; }
-        .timer-info { max-width: 450px; margin: -5px auto 10px; font-size: 0.75rem; color: #aaa; min-height: 1em; }
+        .timer-info { max-width: 450px; margin: 0 auto 5px; font-size: 0.7rem; color: #888; min-height: 1em; }
     </style>
 </head>
 <body>
 
-    <div class="version-tag">Ver.1.5.8.7</div>
+    <div class="version-tag">Ver.1.5.8.8</div>
     <h1>G-Drive Music</h1>
     
     <button id="auth-btn" class="hidden" onclick="handleAuthClick()" style="max-width:200px; margin:20px auto;">Googleドライブに接続</button>
     <div id="song-title">接続中...</div>
 
-    <div id="main-ui" class="hidden">
-        <div class="control-grid">
-            <button onclick="changeMode('normal')" id="mode-normal" class="active">順次</button>
-            <button onclick="changeMode('shuffle')" id="mode-shuffle">シャッフル</button>
-            <button onclick="toggleRepeat()" id="repeat-btn">リピート: OFF</button>
-            
-            <button onclick="prevTrack()">戻り</button>
-            <button onclick="skip(10)">+10秒</button>
-            <select id="sleep-timer" onchange="setSleepTimer()">
-                <option value="0">タイマー: OFF</option>
-                <option value="30">30分後</option>
-                <option value="60">60分後</option>
-                <option value="120">120分後</option>
-                <option value="180">180分後</option>
-            </select>
-            
-            <button onclick="nextTrack()">送り</button>
-            <button onclick="skip(-10)">-10秒</button>
-            <button onclick="audio.pause()" id="btn-pause">一時停止</button>
-        </div>
-
-        <button onclick="resumeOrPlay()" id="big-play-btn" class="big-play-btn">再生</button>
-
-        <div class="scope-controls">
-            <button onclick="changeScope('folder')" id="scope-folder" class="scope-btn active">フォルダ内再生</button>
-            <button onclick="changeScope('all')" id="scope-all" class="scope-btn">全フォルダ再生</button>
-        </div>
-
-        <div class="volume-controls">
-            <span class="volume-label">VOL</span>
-            <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1.0">
-        </div>
-
-        <div id="visualizer-container">
-            <canvas id="visualizer"></canvas>
-        </div>
-
-        <div id="timer-display" class="timer-info"></div>
-
+    <div id="main-ui" class="hidden" style="display: flex; flex-direction: column; flex-grow: 1; min-height: 0;">
+        
         <div class="content-grid">
             <div class="list-box">
                 <h4>フォルダ</h4>
-                <div id="folder-list"></div>
+                <div id="folder-list" class="scroll-area"></div>
             </div>
             <div class="list-box">
                 <h4>曲リスト</h4>
-                <div id="song-list"></div>
+                <div id="song-list" class="scroll-area"></div>
+            </div>
+        </div>
+
+        <div class="bottom-controls">
+            
+            <div id="visualizer-container">
+                <canvas id="visualizer"></canvas>
+            </div>
+
+            <div id="timer-display" class="timer-info"></div>
+
+            <div class="control-grid">
+                <button onclick="changeMode('normal')" id="mode-normal" class="active">順次</button>
+                <button onclick="changeMode('shuffle')" id="mode-shuffle">シャッフル</button>
+                <button onclick="toggleRepeat()" id="repeat-btn">リピート: OFF</button>
+                
+                <button onclick="prevTrack()">戻り</button>
+                <button onclick="skip(10)">+10秒</button>
+                <select id="sleep-timer" onchange="setSleepTimer()">
+                    <option value="0">タイマー: OFF</option>
+                    <option value="30">30分</option>
+                    <option value="60">60分</option>
+                    <option value="120">120分</option>
+                    <option value="180">180分</option>
+                </select>
+                
+                <button onclick="nextTrack()">送り</button>
+                <button onclick="skip(-10)">-10秒</button>
+                <button onclick="audio.pause()" id="btn-pause">一時停止</button>
+            </div>
+
+            <button onclick="resumeOrPlay()" id="big-play-btn" class="big-play-btn">再生</button>
+
+            <div class="scope-controls">
+                <button onclick="changeScope('folder')" id="scope-folder" class="scope-btn active">フォルダ内</button>
+                <button onclick="changeScope('all')" id="scope-all" class="scope-btn">全フォルダ</button>
+            </div>
+
+            <div class="volume-controls">
+                <span class="volume-label">VOL</span>
+                <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1.0">
             </div>
         </div>
     </div>
@@ -337,8 +320,11 @@
             const track = playlist[index];
 
             document.querySelectorAll('#song-list .item-btn').forEach(el => el.classList.remove('playing'));
-            document.getElementById(`song-${index}`)?.classList.add('playing');
-            document.getElementById(`song-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            const targetBtn = document.getElementById(`song-${index}`);
+            if (targetBtn) {
+                targetBtn.classList.add('playing');
+                targetBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
             
             document.getElementById('song-title').innerText = track.name + " (読込中...)";
             updateMediaSession(track.name); 
@@ -403,16 +389,16 @@
             document.getElementById('mode-normal').classList.toggle('active', !isShuffle);
             saveSettings();
         }
-        function setSleepTimer() { /* 変更なし */
+        function setSleepTimer() {
             const mins = parseInt(document.getElementById('sleep-timer').value);
             clearTimeout(sleepTimeout); clearInterval(sleepInterval);
             const display = document.getElementById('timer-display');
             if (mins === 0) { display.innerText = ""; return; }
             let endTime = Date.now() + mins * 60000;
-            display.innerText = `タイマー設定: ${mins}分後に停止`;
+            display.innerText = `タイマー: ${mins}分後に停止`;
             sleepInterval = setInterval(() => {
                 let remain = Math.round((endTime - Date.now()) / 60000);
-                display.innerText = remain > 0 ? `残り ${remain}分` : "停止中...";
+                display.innerText = remain > 0 ? `残り ${remain}分` : "停止...";
             }, 10000);
             sleepTimeout = setTimeout(() => {
                 const fade = setInterval(() => {
@@ -425,31 +411,17 @@
         audio.onended = nextTrack;
         audio.onplay = () => updatePlayPauseUI(true);
         audio.onpause = () => updatePlayPauseUI(false);
-        audio.onerror = (e) => {
-            console.error("Playback error", audio.error);
-            setTimeout(() => { nextTrack(); }, 1000);
-        };
+        audio.onerror = (e) => { setTimeout(() => { nextTrack(); }, 1000); };
 
         function updateMediaSession(title) {
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.playbackState = 'playing';
-
                 navigator.mediaSession.metadata = new MediaMetadata({
-                    title: title,
-                    artist: 'G-Drive Music',
-                    album: currentFolderName,
+                    title: title, artist: 'G-Drive Music', album: currentFolderName,
                     artwork: [{ src: ARTWORK_DATA, sizes: '64x64', type: 'image/png' }]
                 });
-
-                navigator.mediaSession.setActionHandler('play', () => { 
-                    navigator.mediaSession.playbackState = 'playing'; 
-                    resumeOrPlay(); 
-                });
-                navigator.mediaSession.setActionHandler('pause', () => { 
-                    navigator.mediaSession.playbackState = 'paused'; 
-                    audio.pause(); 
-                    updateMediaSessionPaused(title);
-                });
+                navigator.mediaSession.setActionHandler('play', () => { navigator.mediaSession.playbackState = 'playing'; resumeOrPlay(); });
+                navigator.mediaSession.setActionHandler('pause', () => { navigator.mediaSession.playbackState = 'paused'; audio.pause(); updateMediaSessionPaused(title); });
                 navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
                 navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
                 navigator.mediaSession.setActionHandler('seekbackward', () => skip(-10));
@@ -461,56 +433,25 @@
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.playbackState = 'paused';
                 navigator.mediaSession.metadata = new MediaMetadata({
-                    title: title,
-                    artist: 'G-Drive Music',
-                    album: currentFolderName,
+                    title: title, artist: 'G-Drive Music', album: currentFolderName,
                     artwork: [{ src: ARTWORK_DATA, sizes: '64x64', type: 'image/png' }]
                 });
             }
         }
 
-        audio.addEventListener('play', () => {
-             if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
-        });
-        audio.addEventListener('pause', () => {
-             if('mediaSession' in navigator) {
-                 navigator.mediaSession.playbackState = 'paused';
-                 if(playlist.length > 0) updateMediaSessionPaused(playlist[currentIndex].name);
-             }
-        });
-
-        // ★Ver.1.5.8.7 追加: メタデータ読み込み時に即座にPositionStateを更新★
-        // これにより再生開始直後のロック画面ボタンの反応速度が向上する
-        audio.addEventListener('loadedmetadata', () => {
-            if ('mediaSession' in navigator && !isNaN(audio.duration)) {
-                navigator.mediaSession.setPositionState({
-                    duration: audio.duration,
-                    playbackRate: audio.playbackRate,
-                    position: 0 // 再生開始直後は0
-                });
-            }
-        });
+        audio.addEventListener('play', () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
+        audio.addEventListener('pause', () => { if('mediaSession' in navigator) { navigator.mediaSession.playbackState = 'paused'; if(playlist.length > 0) updateMediaSessionPaused(playlist[currentIndex].name); } });
+        audio.addEventListener('loadedmetadata', () => { if ('mediaSession' in navigator && !isNaN(audio.duration)) { navigator.mediaSession.setPositionState({ duration: audio.duration, playbackRate: audio.playbackRate, position: 0 }); } });
 
         if ('mediaSession' in navigator) {
-            audio.addEventListener('timeupdate', () => {
-                if (!isNaN(audio.duration) && !isNaN(audio.currentTime)) {
-                    navigator.mediaSession.setPositionState({
-                        duration: audio.duration,
-                        playbackRate: audio.playbackRate,
-                        position: audio.currentTime
-                    });
-                }
-            });
+            audio.addEventListener('timeupdate', () => { if (!isNaN(audio.duration) && !isNaN(audio.currentTime)) { navigator.mediaSession.setPositionState({ duration: audio.duration, playbackRate: audio.playbackRate, position: audio.currentTime }); } });
         }
 
         function updatePlayPauseUI(isPlaying) {
             const bigPlay = document.getElementById('big-play-btn');
             const pauseBtn = document.getElementById('btn-pause');
-            if (isPlaying) {
-                bigPlay.classList.add('active'); bigPlay.innerText = "再生中"; pauseBtn.classList.remove('active');
-            } else {
-                bigPlay.classList.remove('active'); bigPlay.innerText = "再生"; pauseBtn.classList.add('active');
-            }
+            if (isPlaying) { bigPlay.classList.add('active'); bigPlay.innerText = "再生中"; pauseBtn.classList.remove('active'); }
+            else { bigPlay.classList.remove('active'); bigPlay.innerText = "再生"; pauseBtn.classList.add('active'); }
         }
     </script>
     <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
