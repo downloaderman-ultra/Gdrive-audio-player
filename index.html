@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Music Ver.1.5.9.2</title>
+    <title>G-Drive Music Ver.1.5.9.3</title>
     <style>
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 10px; position: relative; display: flex; flex-direction: column; height: 95vh; }
         .version-tag { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; color: #666; }
@@ -43,14 +43,13 @@
         #visualizer { width: 100%; height: 100%; display: block; }
 
         .hidden { display: none !important; }
-        /* 認証ボタンを目立たせる */
         #auth-btn { background: #1DB954; color: white; font-weight: bold; border: 1px solid #fff; padding: 15px; width: 80%; }
         .timer-info { max-width: 450px; margin: 0 auto 5px; font-size: 0.7rem; color: #888; min-height: 1em; }
     </style>
 </head>
 <body>
 
-    <div class="version-tag">Ver.1.5.9.2</div>
+    <div class="version-tag">Ver.1.5.9.3</div>
     <h1>G-Drive Music</h1>
     
     <button id="auth-btn" class="hidden" onclick="handleAuthClick()" style="max-width:200px; margin:20px auto;">Googleドライブに接続</button>
@@ -119,6 +118,10 @@
         let isRetry = false;
         let lastPositionUpdate = 0;
 
+        // ★ 新規追加: シャッフル用管理変数
+        let shuffleIndices = []; // 曲番号をランダムに並べた配列
+        let shuffleIndex = 0;    // 現在shuffleIndicesの何番目を再生しているか
+
         const audio = document.getElementById('audio-player');
         const volumeSlider = document.getElementById('volume-slider');
 
@@ -129,7 +132,6 @@
 
         volumeSlider.addEventListener('input', (e) => { audio.volume = e.target.value; saveSettings(); });
 
-        // ★ 起動保護: 3秒経っても画面が変わらなければ手動ボタンを表示
         setTimeout(() => {
             const title = document.getElementById('song-title');
             if (title.innerText === "接続中..." && document.getElementById('main-ui').classList.contains('hidden')) {
@@ -163,11 +165,14 @@
 
         async function initApp() {
             const saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
-            if (saved.isShuffle !== undefined) changeMode(saved.isShuffle ? 'shuffle' : 'normal');
+            if (saved.isShuffle !== undefined) isShuffle = saved.isShuffle; // changeModeは後で呼ぶ
             if (saved.repeatMode !== undefined) { repeatMode = saved.repeatMode - 1; toggleRepeat(); }
             if (saved.playScope !== undefined) changeScope(saved.playScope);
             if (saved.volume !== undefined) { volumeSlider.value = saved.volume; audio.volume = saved.volume; }
             
+            // UI状態反映
+            changeMode(isShuffle ? 'shuffle' : 'normal');
+
             setupMediaSessionHandlers();
 
             canvas = document.getElementById('visualizer');
@@ -219,6 +224,16 @@
             localStorage.setItem(STORE_KEY, JSON.stringify(settings));
         }
 
+        // ★ 新機能: フィッシャー・イェーツ シャッフル配列生成
+        function generateShuffleIndices() {
+            shuffleIndices = Array.from({length: playlist.length}, (_, i) => i);
+            for (let i = shuffleIndices.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffleIndices[i], shuffleIndices[j]] = [shuffleIndices[j], shuffleIndices[i]];
+            }
+            shuffleIndex = 0;
+        }
+
         async function loadFolders() {
             try {
                 const query = `'${PARENT_ID}' in parents and mimeType = 'application/vnd.google-apps.folder'`;
@@ -251,6 +266,10 @@
                 if(resp.status === 401) { refreshAccessToken(); return; }
                 const data = await resp.json();
                 playlist = data.files.sort((a,b)=>a.name.localeCompare(b.name,'ja'));
+                
+                // ★ シャッフル配列を初期化
+                generateShuffleIndices();
+
                 const listEl = document.getElementById('song-list');
                 listEl.innerHTML = '';
                 playlist.forEach((s, idx) => {
@@ -260,17 +279,29 @@
                     listEl.appendChild(btn);
                 });
                 document.getElementById('song-title').innerText = `${folderName} (${playlist.length}曲)`;
+                
                 if (playlist.length === 0 && autoPlay && playScope === 'all') {
                     setTimeout(() => { 
-                        if (isShuffle) loadSongs(allFolders[Math.floor(Math.random() * allFolders.length)].id, "", true);
-                        else {
+                        // ★ 全フォルダ・シャッフル時はランダムに次のフォルダへ
+                        if (isShuffle) {
+                             const randomFolder = allFolders[Math.floor(Math.random() * allFolders.length)];
+                             loadSongs(randomFolder.id, randomFolder.name, true);
+                        } else {
                             const nextIdx = (allFolders.findIndex(f => f.id === currentFolderId) + 1) % allFolders.length;
                             loadSongs(allFolders[nextIdx].id, allFolders[nextIdx].name, true);
                         }
                     }, 500);
                     return;
                 }
-                if (autoPlay && playlist.length > 0) playTrack(isShuffle ? Math.floor(Math.random() * playlist.length) : 0);
+                
+                if (autoPlay && playlist.length > 0) {
+                    if (isShuffle) {
+                        // シャッフル時はシャッフル配列の0番目から開始
+                        playTrack(shuffleIndices[0]);
+                    } else {
+                        playTrack(0);
+                    }
+                }
             } catch(e) { console.error(e); }
         }
 
@@ -285,7 +316,15 @@
             initAudioContext();
             if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
             if (playlist.length === 0) return;
+            
             currentIndex = index;
+            
+            // ★ 手動再生された場合、シャッフルインデックスもそれに合わせる（同期とる）
+            if (isShuffle) {
+                const foundIdx = shuffleIndices.indexOf(index);
+                if (foundIdx !== -1) shuffleIndex = foundIdx;
+            }
+
             const track = playlist[index];
             document.querySelectorAll('#song-list .item-btn').forEach(el => el.classList.remove('playing'));
             const targetBtn = document.getElementById(`song-${index}`);
@@ -299,7 +338,6 @@
                     artwork: [{ src: ARTWORK_DATA, sizes: '64x64', type: 'image/png' }]
                 });
                 navigator.mediaSession.playbackState = 'playing'; 
-                // ★ 修正: 安全のため引数なしでクリアするか、try-catchで囲む
                 try { navigator.mediaSession.setPositionState(); } catch(e) {} 
             }
 
@@ -324,20 +362,63 @@
 
         function nextTrack() {
             if (repeatMode === 2) { playTrack(currentIndex); return; }
-            if (playScope === 'all' && isShuffle) { loadSongs(allFolders[Math.floor(Math.random() * allFolders.length)].id, "", true); return; }
-            let next = isShuffle ? Math.floor(Math.random() * playlist.length) : (currentIndex + 1);
-            if (next >= playlist.length) {
-                if (repeatMode === 1) next = 0; 
-                else if (playScope === 'all') {
-                    const nextIdx = (allFolders.findIndex(f => f.id === currentFolderId) + 1) % allFolders.length;
-                    loadSongs(allFolders[nextIdx].id, allFolders[nextIdx].name, true);
-                    return;
-                } else { audio.pause(); return; }
+            
+            if (playScope === 'all' && isShuffle && playlist.length === 0) {
+                 // プレイリストが空の場合の安全策
+                 loadSongs(allFolders[Math.floor(Math.random() * allFolders.length)].id, "", true); 
+                 return;
+            }
+
+            let next;
+            if (isShuffle) {
+                // ★ シャッフル: 配列の次の曲へ
+                shuffleIndex++;
+                if (shuffleIndex >= shuffleIndices.length) {
+                    // 全曲再生したらリシャッフルして最初へ
+                    if (playScope === 'all') {
+                        // 全フォルダモードなら次のフォルダへ飛んでリセット
+                        const randomFolder = allFolders[Math.floor(Math.random() * allFolders.length)];
+                        loadSongs(randomFolder.id, randomFolder.name, true);
+                        return;
+                    } else if (repeatMode === 1) { // ALLリピートONなら
+                        generateShuffleIndices();
+                        shuffleIndex = 0;
+                    } else { // リピートOFFなら停止
+                        audio.pause(); 
+                        return;
+                    }
+                }
+                next = shuffleIndices[shuffleIndex];
+            } else {
+                // ★ 通常再生
+                next = currentIndex + 1;
+                if (next >= playlist.length) {
+                    if (repeatMode === 1) next = 0; 
+                    else if (playScope === 'all') {
+                        const nextIdx = (allFolders.findIndex(f => f.id === currentFolderId) + 1) % allFolders.length;
+                        loadSongs(allFolders[nextIdx].id, allFolders[nextIdx].name, true);
+                        return;
+                    } else { audio.pause(); return; }
+                }
             }
             playTrack(next);
         }
 
-        function prevTrack() { playTrack((currentIndex - 1 + playlist.length) % playlist.length); }
+        function prevTrack() { 
+            // シャッフル中は「履歴を戻る」動作が理想だが、簡易的に前のインデックスへ
+            if (isShuffle) {
+                if (shuffleIndex > 0) {
+                    shuffleIndex--;
+                    playTrack(shuffleIndices[shuffleIndex]);
+                } else {
+                    // 先頭の場合は曲の頭出し（または最後の曲へ）
+                    playTrack(shuffleIndices[0]);
+                }
+            } else {
+                playTrack((currentIndex - 1 + playlist.length) % playlist.length); 
+            }
+        }
+
         function changeScope(scope) { playScope = scope; document.getElementById('scope-folder').className = `scope-btn ${scope === 'folder' ? 'active' : ''}`; document.getElementById('scope-all').className = `scope-btn ${scope === 'all' ? 'active' : ''}`; saveSettings(); }
         function toggleRepeat() {
             repeatMode = (repeatMode + 1) % 3;
@@ -346,7 +427,24 @@
             document.getElementById('repeat-btn').classList.toggle('active', repeatMode > 0);
             saveSettings();
         }
-        function changeMode(m) { isShuffle = (m === 'shuffle'); document.getElementById('mode-shuffle').classList.toggle('active', isShuffle); document.getElementById('mode-normal').classList.toggle('active', !isShuffle); saveSettings(); }
+        function changeMode(m) { 
+            isShuffle = (m === 'shuffle'); 
+            document.getElementById('mode-shuffle').classList.toggle('active', isShuffle); 
+            document.getElementById('mode-normal').classList.toggle('active', !isShuffle); 
+            
+            // ★ モード変更時にシャッフル配列を再生成
+            if (isShuffle) {
+                generateShuffleIndices();
+                // 現在再生中の曲をリストの先頭に持ってくる（違和感防止）
+                const currentInShuffle = shuffleIndices.indexOf(currentIndex);
+                if (currentInShuffle !== -1) {
+                    [shuffleIndices[0], shuffleIndices[currentInShuffle]] = [shuffleIndices[currentInShuffle], shuffleIndices[0]];
+                    shuffleIndex = 0;
+                }
+            }
+            
+            saveSettings(); 
+        }
         function setSleepTimer() {
             const mins = parseInt(document.getElementById('sleep-timer').value);
             clearTimeout(sleepTimeout); clearInterval(sleepInterval);
@@ -364,7 +462,11 @@
         audio.onended = nextTrack;
         audio.onplay = () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; updatePlayPauseUI(true); };
         audio.onpause = () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; updatePlayPauseUI(false); };
-        audio.onerror = (e) => { setTimeout(() => { nextTrack(); }, 1000); };
+        // ★ エラー時は自動で次へ（非対応フォーマット対策）
+        audio.onerror = (e) => { 
+            console.log("Playback Error, skipping...");
+            setTimeout(() => { nextTrack(); }, 1000); 
+        };
         audio.onwaiting = () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; };
 
         function setupMediaSessionHandlers() {
