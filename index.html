@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Music Ver.1.5.1</title>
+    <title>G-Drive Music Ver.1.5.3</title>
     <style>
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 10px; position: relative; }
         .version-tag { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; color: #666; }
@@ -11,6 +11,7 @@
         
         #song-title { margin: 15px 0; font-weight: bold; color: #1DB954; font-size: 1.1rem; min-height: 2.4em; display: flex; align-items: center; justify-content: center; padding: 0 10px; }
         
+        /* 3x3 コントロールグリッド */
         .control-grid { 
             display: grid; 
             grid-template-columns: repeat(3, 1fr); 
@@ -44,6 +45,7 @@
         .scope-btn { background: #222; border: 1px solid #444; color: #888; }
         .scope-btn.active { background: #1DB954; color: white; border-color: #1DB954; }
 
+        /* リストエリア */
         .content-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; max-width: 600px; margin: 0 auto; height: 40vh; }
         .list-box { background: #1e1e1e; border-radius: 8px; overflow-y: auto; border: 1px solid #333; text-align: left; padding: 5px; }
         .list-box h4 { font-size: 0.8rem; margin: 5px; color: #888; border-bottom: 1px solid #333; padding-bottom: 3px; text-align: center; }
@@ -59,7 +61,7 @@
 </head>
 <body>
 
-    <div class="version-tag">Ver.1.5.1</div>
+    <div class="version-tag">Ver.1.5.3</div>
     <h1>G-Drive Music</h1>
     
     <button id="auth-btn" class="hidden" onclick="handleAuthClick()" style="max-width:200px; margin:20px auto;">Googleドライブに接続</button>
@@ -117,11 +119,11 @@
         const STORE_KEY = 'gdrive_music_state';
 
         let tokenClient, accessToken = null;
-        let allFolders = []; // 全フォルダリスト
+        let allFolders = [];
         let playlist = [], currentIndex = 0;
-        let isShuffle = false, repeatMode = 0, playScope = 'folder'; // 'folder' | 'all'
+        let isShuffle = false, repeatMode = 0, playScope = 'folder'; 
         let sleepTimeout = null, sleepInterval = null;
-        let currentFolderId = null;
+        let currentFolderId = null, currentFolderName = "";
 
         const audio = document.getElementById('audio-player');
 
@@ -143,13 +145,33 @@
         function handleAuthClick() { tokenClient.requestAccessToken({ prompt: 'select_account' }); }
 
         async function initApp() {
-            await loadFolders();
+            // 設定の復元
             const saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
+            
+            if (saved.isShuffle !== undefined) changeMode(saved.isShuffle ? 'shuffle' : 'normal');
+            if (saved.repeatMode !== undefined) { repeatMode = saved.repeatMode - 1; toggleRepeat(); }
+            if (saved.playScope !== undefined) changeScope(saved.playScope);
+
+            await loadFolders();
+            
+            // 前回開いていたフォルダがあれば読み込む（自動再生はOFF）
             if (saved.folderId) {
                 loadSongs(saved.folderId, saved.folderName, false);
             } else {
                 document.getElementById('song-title').innerText = "フォルダを選択してください";
             }
+        }
+
+        // 設定を保存する関数
+        function saveSettings() {
+            const settings = {
+                folderId: currentFolderId,
+                folderName: currentFolderName,
+                isShuffle: isShuffle,
+                repeatMode: repeatMode,
+                playScope: playScope
+            };
+            localStorage.setItem(STORE_KEY, JSON.stringify(settings));
         }
 
         async function loadFolders() {
@@ -176,10 +198,10 @@
 
         async function loadSongs(folderId, folderName, autoPlay) {
             currentFolderId = folderId;
+            currentFolderName = folderName;
+            saveSettings(); // フォルダ変更を保存
+
             document.getElementById('song-title').innerText = `${folderName} を読込中...`;
-            localStorage.setItem(STORE_KEY, JSON.stringify({folderId, folderName}));
-            
-            // フォルダリストの見た目更新
             document.querySelectorAll('#folder-list .item-btn').forEach(b => b.classList.remove('current-folder'));
             document.getElementById(`folder-${folderId}`)?.classList.add('current-folder');
 
@@ -188,7 +210,7 @@
                 const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`,
                     { headers: { 'Authorization': `Bearer ${accessToken}` } });
                 
-                if(resp.status === 401) { tokenClient.requestAccessToken({prompt: ''}); return; } // トークン切れ対策
+                if(resp.status === 401) { tokenClient.requestAccessToken({prompt: ''}); return; }
 
                 const data = await resp.json();
                 playlist = data.files.sort((a,b)=>a.name.localeCompare(b.name,'ja'));
@@ -205,8 +227,8 @@
                 });
                 
                 document.getElementById('song-title').innerText = `${folderName} (${playlist.length}曲)`;
+                
                 if (autoPlay && playlist.length > 0) {
-                    // 全フォルダシャッフル時はランダム、それ以外は0番目
                     if(playScope === 'all' && isShuffle) {
                         playTrack(Math.floor(Math.random() * playlist.length));
                     } else {
@@ -229,7 +251,6 @@
             currentIndex = index;
             const track = playlist[index];
             
-            // UI更新
             document.querySelectorAll('#song-list .item-btn').forEach(el => el.classList.remove('playing'));
             const activeBtn = document.getElementById(`song-${index}`);
             if (activeBtn) {
@@ -238,8 +259,6 @@
             }
             document.getElementById('song-title').innerText = track.name;
 
-            // ★修正点: スリープ復帰後の再生不可バグ対策
-            // 古いソースを破棄し、明示的にロードを掛ける
             audio.pause();
             audio.removeAttribute('src');
             audio.load();
@@ -257,20 +276,15 @@
                     updateMediaSession(track.name);
                 })
                 .catch(err => {
-                    console.error("Retry...", err);
-                    if(err.message === '401') {
-                        tokenClient.requestAccessToken({prompt: ''}); // トークン再取得してリトライはしない(次回操作に委ねる)
-                    }
+                    if(err.message === '401') tokenClient.requestAccessToken({prompt: ''});
                 });
         }
 
         function nextTrack() {
-            // リピート: 1曲
             if (repeatMode === 2) { playTrack(currentIndex); return; }
 
-            // 全フォルダシャッフル時の特殊挙動
+            // 全フォルダシャッフル時の挙動
             if (playScope === 'all' && isShuffle) {
-                // ランダムにフォルダを選んで移動 (今のフォルダ以外が望ましいが、簡易的にランダム)
                 const randomFolder = allFolders[Math.floor(Math.random() * allFolders.length)];
                 loadSongs(randomFolder.id, randomFolder.name, true);
                 return;
@@ -278,27 +292,22 @@
 
             let next;
             if (isShuffle) { 
-                // フォルダ内シャッフル
                 next = Math.floor(Math.random() * playlist.length);
             } else {
-                // 順次再生
                 next = currentIndex + 1;
             }
 
-            // フォルダの最後に来た場合
             if (next >= playlist.length) {
                 if (repeatMode === 1) {
-                    // リピートALL: 先頭に戻る
                     next = 0; 
                 } else if (playScope === 'all') {
-                    // 全フォルダ再生(順次): 次のフォルダへ
+                    // 全フォルダ順次再生
                     const currentFolderIndex = allFolders.findIndex(f => f.id === currentFolderId);
                     const nextFolderIndex = (currentFolderIndex + 1) % allFolders.length;
                     const nextFolder = allFolders[nextFolderIndex];
                     loadSongs(nextFolder.id, nextFolder.name, true);
                     return;
                 } else {
-                    // フォルダ内再生(順次): 停止
                     audio.pause(); 
                     return; 
                 }
@@ -312,6 +321,7 @@
             playScope = scope;
             document.getElementById('scope-folder').className = `scope-btn ${scope === 'folder' ? 'active' : ''}`;
             document.getElementById('scope-all').className = `scope-btn ${scope === 'all' ? 'active' : ''}`;
+            saveSettings();
         }
 
         function toggleRepeat() {
@@ -319,9 +329,17 @@
             const labels = ["OFF", "ALL", "1曲"];
             document.getElementById('repeat-btn').innerText = "リピート: " + labels[repeatMode];
             document.getElementById('repeat-btn').classList.toggle('active', repeatMode > 0);
+            saveSettings();
         }
 
-        function setSleepTimer() { /* 変更なし(Ver1.5同様) */
+        function changeMode(m) {
+            isShuffle = (m === 'shuffle');
+            document.getElementById('mode-shuffle').classList.toggle('active', isShuffle);
+            document.getElementById('mode-normal').classList.toggle('active', !isShuffle);
+            saveSettings();
+        }
+
+        function setSleepTimer() {
             const mins = parseInt(document.getElementById('sleep-timer').value);
             clearTimeout(sleepTimeout); clearInterval(sleepInterval);
             const display = document.getElementById('timer-display');
@@ -339,11 +357,6 @@
             }, mins * 60000);
         }
 
-        function changeMode(m) {
-            isShuffle = (m === 'shuffle');
-            document.getElementById('mode-shuffle').classList.toggle('active', isShuffle);
-            document.getElementById('mode-normal').classList.toggle('active', !isShuffle);
-        }
         function skip(s) { audio.currentTime += s; }
         
         audio.onended = nextTrack;
