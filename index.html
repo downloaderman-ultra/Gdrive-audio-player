@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Music Ver.1.5.8.1</title>
+    <title>G-Drive Music Ver.1.5.8.2</title>
     <style>
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 10px; position: relative; }
         .version-tag { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; color: #666; }
@@ -72,7 +72,7 @@
 </head>
 <body>
 
-    <div class="version-tag">Ver.1.5.8.1</div>
+    <div class="version-tag">Ver.1.5.8.2</div>
     <h1>G-Drive Music</h1>
     
     <button id="auth-btn" class="hidden" onclick="handleAuthClick()" style="max-width:200px; margin:20px auto;">Googleドライブに接続</button>
@@ -150,6 +150,9 @@
 
         let audioCtx, analyser, dataArray, canvas, canvasCtx, animationId;
         let isAudioContextInitialized = false;
+
+        // ダミーのアートワーク画像（ロック画面表示用）
+        const ARTWORK_URL = 'https://via.placeholder.com/512/1a1a1a/1DB954?text=Music';
 
         volumeSlider.addEventListener('input', (e) => {
             audio.volume = e.target.value;
@@ -396,7 +399,7 @@
             document.getElementById('mode-normal').classList.toggle('active', !isShuffle);
             saveSettings();
         }
-        function setSleepTimer() {
+        function setSleepTimer() { /* 変更なし */
             const mins = parseInt(document.getElementById('sleep-timer').value);
             clearTimeout(sleepTimeout); clearInterval(sleepInterval);
             const display = document.getElementById('timer-display');
@@ -420,6 +423,40 @@
         audio.onpause = () => updatePlayPauseUI(false);
         audio.onerror = () => { console.log("Audio Error"); };
 
+        // ★ MediaSession 更新処理の強化 ★
+        // タイムライン情報（duration/position）をOSに渡すことでシークバーが有効になる
+        function updateMediaSession(title) {
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: title,
+                    artist: 'G-Drive Music',
+                    album: currentFolderName,
+                    artwork: [{ src: ARTWORK_URL, sizes: '512x512', type: 'image/png' }]
+                });
+
+                // アクションハンドラの設定
+                navigator.mediaSession.setActionHandler('play', () => resumeOrPlay());
+                navigator.mediaSession.setActionHandler('pause', () => audio.pause());
+                navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
+                navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
+                navigator.mediaSession.setActionHandler('seekbackward', () => skip(-10));
+                navigator.mediaSession.setActionHandler('seekforward', () => skip(10));
+            }
+        }
+
+        // 時間経過に合わせてタイムライン情報を更新
+        if ('mediaSession' in navigator) {
+            audio.addEventListener('timeupdate', () => {
+                if (!isNaN(audio.duration) && !isNaN(audio.currentTime)) {
+                    navigator.mediaSession.setPositionState({
+                        duration: audio.duration,
+                        playbackRate: audio.playbackRate,
+                        position: audio.currentTime
+                    });
+                }
+            });
+        }
+
         function updatePlayPauseUI(isPlaying) {
             const bigPlay = document.getElementById('big-play-btn');
             const pauseBtn = document.getElementById('btn-pause');
@@ -427,27 +464,6 @@
                 bigPlay.classList.add('active'); bigPlay.innerText = "再生中"; pauseBtn.classList.remove('active');
             } else {
                 bigPlay.classList.remove('active'); bigPlay.innerText = "再生"; pauseBtn.classList.add('active');
-            }
-        }
-
-        // ★ MediaSession APIによるロック画面連携 ★
-        function updateMediaSession(title) {
-            if ('mediaSession' in navigator) {
-                navigator.mediaSession.metadata = new MediaMetadata({
-                    title: title,
-                    artist: 'G-Drive Music',
-                    // artwork: [{ src: 'icon.png', sizes: '96x96', type: 'image/png' }] // 必要に応じてアイコン画像を指定
-                });
-                
-                // ロック画面のボタン操作とアプリ内の関数を紐付け
-                navigator.mediaSession.setActionHandler('play', () => { resumeOrPlay(); });
-                navigator.mediaSession.setActionHandler('pause', () => { audio.pause(); });
-                navigator.mediaSession.setActionHandler('previoustrack', prevTrack); // 「戻り」ボタンで前の曲へ
-                navigator.mediaSession.setActionHandler('nexttrack', nextTrack); // 「送り」ボタンで次の曲へ
-                
-                // 10秒スキップもロック画面で使えるように設定
-                navigator.mediaSession.setActionHandler('seekbackward', () => skip(-10));
-                navigator.mediaSession.setActionHandler('seekforward', () => skip(10));
             }
         }
     </script>
