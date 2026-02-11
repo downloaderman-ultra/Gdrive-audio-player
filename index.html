@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Music Ver.1.5.7</title>
+    <title>G-Drive Music Ver.1.1.8</title>
     <style>
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 10px; position: relative; }
         .version-tag { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; color: #666; }
@@ -43,7 +43,7 @@
         .scope-btn.active { background: #1DB954; color: white; border-color: #1DB954; }
 
         .volume-controls {
-            max-width: 450px; margin: 0 auto 10px; /* 下のマージンを少し詰める */
+            max-width: 450px; margin: 0 auto 10px;
             display: flex; align-items: center; gap: 10px;
             background: #222; padding: 8px 15px; border-radius: 6px;
         }
@@ -52,7 +52,6 @@
             width: 100%; cursor: pointer; accent-color: #1DB954; height: 4px;
         }
 
-        /* イコライザー表示エリア */
         #visualizer-container {
             max-width: 600px; margin: 0 auto 10px;
             height: 60px; background: #1a1a1a; border-radius: 8px;
@@ -75,14 +74,13 @@
 </head>
 <body>
 
-    <div class="version-tag">Ver.1.5.7</div>
+    <div class="version-tag">Ver.1.1.8</div>
     <h1>G-Drive Music</h1>
     
     <button id="auth-btn" class="hidden" onclick="handleAuthClick()" style="max-width:200px; margin:20px auto;">Googleドライブに接続</button>
     <div id="song-title">接続中...</div>
 
     <div id="main-ui" class="hidden">
-        
         <div class="control-grid">
             <button onclick="changeMode('normal')" id="mode-normal" class="active">順次</button>
             <button onclick="changeMode('shuffle')" id="mode-shuffle">シャッフル</button>
@@ -147,11 +145,12 @@
         let isShuffle = false, repeatMode = 0, playScope = 'folder'; 
         let sleepTimeout = null, sleepInterval = null;
         let currentFolderId = null, currentFolderName = "";
+        let isRetry = false; // 再試行フラグ
 
         const audio = document.getElementById('audio-player');
         const volumeSlider = document.getElementById('volume-slider');
 
-        // Web Audio API & Visualizer variables
+        // Web Audio & Visualizer
         let audioCtx, analyser, dataArray, canvas, canvasCtx, animationId;
         let isAudioContextInitialized = false;
 
@@ -169,13 +168,27 @@
                     accessToken = resp.access_token;
                     document.getElementById('auth-btn').classList.add('hidden');
                     document.getElementById('main-ui').classList.remove('hidden');
-                    initApp();
+                    // 再試行中なら即座に曲ロードへ戻る
+                    if (isRetry) {
+                         isRetry = false;
+                         if(playlist.length > 0) playTrack(currentIndex);
+                         else initApp();
+                    } else {
+                        initApp();
+                    }
                 },
             });
             tokenClient.requestAccessToken({ prompt: '' });
         }
 
         function handleAuthClick() { tokenClient.requestAccessToken({ prompt: 'select_account' }); }
+
+        // トークンリフレッシュ用関数
+        function refreshAccessToken() {
+            console.log("Refreshing token...");
+            isRetry = true;
+            tokenClient.requestAccessToken({ prompt: '' });
+        }
 
         async function initApp() {
             const saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
@@ -184,13 +197,13 @@
             if (saved.playScope !== undefined) changeScope(saved.playScope);
             if (saved.volume !== undefined) { volumeSlider.value = saved.volume; audio.volume = saved.volume; }
 
-            // Init Visualizer Canvas
             canvas = document.getElementById('visualizer');
             canvasCtx = canvas.getContext('2d');
             resizeCanvas();
             window.addEventListener('resize', resizeCanvas);
 
             await loadFolders();
+            
             if (saved.folderId) {
                 loadSongs(saved.folderId, saved.folderName, false);
             } else {
@@ -198,19 +211,20 @@
             }
         }
 
-        // Initialize Web Audio API (must be called after user interaction)
         function initAudioContext() {
             if (isAudioContextInitialized) return;
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            audioCtx = new AudioContext();
-            analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 128; // 棒の本数に関係 (小さすぎるとカクカク、大きすぎると重い)
-            const source = audioCtx.createMediaElementSource(audio);
-            source.connect(analyser);
-            analyser.connect(audioCtx.destination);
-            dataArray = new Uint8Array(analyser.frequencyBinCount);
-            isAudioContextInitialized = true;
-            drawVisualizer();
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 64; // 負荷軽減のためサイズを縮小
+                const source = audioCtx.createMediaElementSource(audio);
+                source.connect(analyser);
+                analyser.connect(audioCtx.destination);
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                isAudioContextInitialized = true;
+                drawVisualizer();
+            } catch(e) { console.error("AudioContext init error:", e); }
         }
 
         function resizeCanvas() {
@@ -220,6 +234,7 @@
 
         function drawVisualizer() {
             animationId = requestAnimationFrame(drawVisualizer);
+            if(!analyser) return;
             analyser.getByteFrequencyData(dataArray);
             canvasCtx.fillStyle = '#1a1a1a';
             canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
@@ -228,7 +243,7 @@
             let x = 0;
             for(let i = 0; i < dataArray.length; i++) {
                 barHeight = (dataArray[i] / 255) * canvas.height;
-                canvasCtx.fillStyle = '#1DB954'; // Green color
+                canvasCtx.fillStyle = '#1DB954';
                 canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
                 x += barWidth + 1;
             }
@@ -242,11 +257,14 @@
             localStorage.setItem(STORE_KEY, JSON.stringify(settings));
         }
 
-        async function loadFolders() { /* ... (省略: Ver.1.5.5と同じ) ... */ 
+        async function loadFolders() {
             try {
                 const query = `'${PARENT_ID}' in parents and mimeType = 'application/vnd.google-apps.folder'`;
                 const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`,
                     { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                
+                if(resp.status === 401) { refreshAccessToken(); return; } // トークン切れ対応
+
                 const data = await resp.json();
                 allFolders = data.files.sort((a,b)=>a.name.localeCompare(b.name,'ja'));
                 const listEl = document.getElementById('folder-list');
@@ -263,8 +281,8 @@
             } catch(e) { console.error(e); }
         }
 
-        async function loadSongs(folderId, folderName, autoPlay) { /* ... (省略: Ver.1.5.5と同じ) ... */ 
-             currentFolderId = folderId;
+        async function loadSongs(folderId, folderName, autoPlay) {
+            currentFolderId = folderId;
             currentFolderName = folderName;
             saveSettings();
 
@@ -277,7 +295,7 @@
                 const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`,
                     { headers: { 'Authorization': `Bearer ${accessToken}` } });
                 
-                if(resp.status === 401) { tokenClient.requestAccessToken({prompt: ''}); return; }
+                if(resp.status === 401) { refreshAccessToken(); return; }
 
                 const data = await resp.json();
                 playlist = data.files.sort((a,b)=>a.name.localeCompare(b.name,'ja'));
@@ -299,16 +317,15 @@
                     document.getElementById('song-title').innerText = `${folderName} (ファイルなし)`;
                     if (autoPlay && playScope === 'all') {
                         setTimeout(() => { 
-                            if (isShuffle) {
+                           // スキップロジック
+                           if (isShuffle) {
                                 const randomFolder = allFolders[Math.floor(Math.random() * allFolders.length)];
                                 loadSongs(randomFolder.id, randomFolder.name, true);
                             } else {
                                 const currentFolderIndex = allFolders.findIndex(f => f.id === currentFolderId);
                                 const nextFolderIndex = (currentFolderIndex + 1) % allFolders.length;
                                 const nextFolder = allFolders[nextFolderIndex];
-                                if (nextFolder.id !== currentFolderId) {
-                                    loadSongs(nextFolder.id, nextFolder.name, true);
-                                }
+                                if (nextFolder.id !== currentFolderId) loadSongs(nextFolder.id, nextFolder.name, true);
                             }
                         }, 500);
                         return;
@@ -326,21 +343,25 @@
         }
 
         function resumeOrPlay() {
-            // ユーザー操作時にAudioContextを初期化・再開
+            // 強制的にContextを再開
             initAudioContext();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
 
             if (audio.src && audio.src !== window.location.href) {
-                audio.play();
+                // エラーで止まっていた場合のリロード
+                if (audio.error) {
+                    audio.load(); 
+                }
+                audio.play().catch(e => console.log("Play failed, need load"));
             } else if (playlist.length > 0) {
                 playTrack(currentIndex);
             }
         }
 
         function playTrack(index) {
-            // ユーザー操作時にAudioContextを初期化・再開
+            // ユーザーアクション時に必ずContextを再開
             initAudioContext();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
 
             if (playlist.length === 0) return;
             currentIndex = index;
@@ -354,25 +375,42 @@
             }
             document.getElementById('song-title').innerText = track.name;
 
+            // ★重要: 古いバッファを強制破棄
             audio.pause();
             audio.removeAttribute('src');
-            audio.load();
+            audio.load(); 
 
             const fetchUrl = `https://www.googleapis.com/drive/v3/files/${track.id}?alt=media`;
             fetch(fetchUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } })
-                .then(r => { if (!r.ok) throw new Error(r.status); return r.blob(); })
+                .then(r => { 
+                    if (r.status === 401) { throw new Error('401'); } // 401はcatchブロックへ
+                    if (!r.ok) throw new Error(r.status); 
+                    return r.blob(); 
+                })
                 .then(blob => {
                     audio.src = URL.createObjectURL(blob);
                     audio.volume = volumeSlider.value;
-                    audio.play().catch(e => console.log("User interaction needed"));
+                    
+                    const playPromise = audio.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(error => {
+                            console.log("Auto-play prevented or interrupted:", error);
+                        });
+                    }
                     updateMediaSession(track.name);
                 })
                 .catch(err => {
-                    if(err.message === '401') tokenClient.requestAccessToken({prompt: ''});
+                    console.error("Play error:", err);
+                    if(err.message === '401' || err.message.includes('401')) {
+                        // ★自動復旧ポイント
+                        refreshAccessToken(); 
+                    }
                 });
         }
 
-        // ... (以下、nextTrack, prevTrackなどはVer.1.5.5と同じため省略) ...
+        // ... nextTrack, prevTrack, changeScope, toggleRepeat, changeMode ...
+        // これらは変更なしのため省略せず記述
+        
         function nextTrack() {
             if (repeatMode === 2) { playTrack(currentIndex); return; }
             if (playScope === 'all' && isShuffle) {
@@ -435,6 +473,8 @@
         audio.onended = nextTrack;
         audio.onplay = () => updatePlayPauseUI(true);
         audio.onpause = () => updatePlayPauseUI(false);
+        // エラー発生時は次へ行かずに止める（無限ループ防止）か、ユーザー操作を待つ
+        audio.onerror = () => { console.log("Audio Error"); };
 
         function updatePlayPauseUI(isPlaying) {
             const bigPlay = document.getElementById('big-play-btn');
@@ -446,15 +486,23 @@
             }
         }
 
-        function updateMediaSession(title) { /* ... (省略: Ver.1.5.5と同じ) ... */ 
+        function updateMediaSession(title) {
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.metadata = new MediaMetadata({ title, artist: 'G-Drive Music' });
-                navigator.mediaSession.setActionHandler('play', () => audio.play());
+                navigator.mediaSession.setActionHandler('play', () => { resumeOrPlay(); });
                 navigator.mediaSession.setActionHandler('pause', () => audio.pause());
                 navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
                 navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
             }
         }
+
+        // 画面復帰時のチェック
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible") {
+                // トークンが切れていそうならリフレッシュしておくのも手だが、
+                // 再生ボタンを押した瞬間にrefreshAccessToken()が走るようにplayTrackで制御済み
+            }
+        });
     </script>
     <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
     <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
