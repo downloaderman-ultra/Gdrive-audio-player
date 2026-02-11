@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Music Ver.1.5.9.3</title>
+    <title>G-Drive Music Ver.1.5.9.5</title>
     <style>
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 10px; position: relative; display: flex; flex-direction: column; height: 95vh; }
         .version-tag { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; color: #666; }
@@ -49,7 +49,7 @@
 </head>
 <body>
 
-    <div class="version-tag">Ver.1.5.9.3</div>
+    <div class="version-tag">Ver.1.5.9.5</div>
     <h1>G-Drive Music</h1>
     
     <button id="auth-btn" class="hidden" onclick="handleAuthClick()" style="max-width:200px; margin:20px auto;">Googleドライブに接続</button>
@@ -110,6 +110,9 @@
         const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
         const STORE_KEY = 'gdrive_music_state';
 
+        // ★ 対応拡張子の定義 (これ以外はリストに表示しない)
+        const SUPPORTED_EXTENSIONS = ['.mp3', '.m4a', '.wav', '.ogg', '.aac', '.flac', '.weba'];
+
         let tokenClient, accessToken = null;
         let allFolders = [], playlist = [], currentIndex = 0;
         let isShuffle = false, repeatMode = 0, playScope = 'folder'; 
@@ -117,10 +120,10 @@
         let currentFolderId = null, currentFolderName = "";
         let isRetry = false;
         let lastPositionUpdate = 0;
+        let tokenRefreshInterval = null;
 
-        // ★ 新規追加: シャッフル用管理変数
-        let shuffleIndices = []; // 曲番号をランダムに並べた配列
-        let shuffleIndex = 0;    // 現在shuffleIndicesの何番目を再生しているか
+        let shuffleIndices = []; 
+        let shuffleIndex = 0;
 
         const audio = document.getElementById('audio-player');
         const volumeSlider = document.getElementById('volume-slider');
@@ -153,6 +156,9 @@
                     accessToken = resp.access_token;
                     document.getElementById('auth-btn').classList.add('hidden');
                     document.getElementById('main-ui').classList.remove('hidden');
+                    
+                    startTokenAutoRefresh();
+
                     if (isRetry) { isRetry = false; if(playlist.length > 0) playTrack(currentIndex); else initApp(); }
                     else initApp();
                 },
@@ -160,19 +166,26 @@
             tokenClient.requestAccessToken({ prompt: '' });
         }
 
+        function startTokenAutoRefresh() {
+            if (tokenRefreshInterval) clearInterval(tokenRefreshInterval);
+            console.log("Token Auto-Refresh Started");
+            tokenRefreshInterval = setInterval(() => {
+                console.log("Auto refreshing token...");
+                tokenClient.requestAccessToken({ prompt: '' });
+            }, 50 * 60 * 1000); 
+        }
+
         function handleAuthClick() { tokenClient.requestAccessToken({ prompt: 'select_account' }); }
         function refreshAccessToken() { isRetry = true; tokenClient.requestAccessToken({ prompt: '' }); }
 
         async function initApp() {
             const saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
-            if (saved.isShuffle !== undefined) isShuffle = saved.isShuffle; // changeModeは後で呼ぶ
+            if (saved.isShuffle !== undefined) isShuffle = saved.isShuffle;
             if (saved.repeatMode !== undefined) { repeatMode = saved.repeatMode - 1; toggleRepeat(); }
             if (saved.playScope !== undefined) changeScope(saved.playScope);
             if (saved.volume !== undefined) { volumeSlider.value = saved.volume; audio.volume = saved.volume; }
             
-            // UI状態反映
             changeMode(isShuffle ? 'shuffle' : 'normal');
-
             setupMediaSessionHandlers();
 
             canvas = document.getElementById('visualizer');
@@ -224,7 +237,6 @@
             localStorage.setItem(STORE_KEY, JSON.stringify(settings));
         }
 
-        // ★ 新機能: フィッシャー・イェーツ シャッフル配列生成
         function generateShuffleIndices() {
             shuffleIndices = Array.from({length: playlist.length}, (_, i) => i);
             for (let i = shuffleIndices.length - 1; i > 0; i--) {
@@ -265,9 +277,13 @@
                 const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
                 if(resp.status === 401) { refreshAccessToken(); return; }
                 const data = await resp.json();
-                playlist = data.files.sort((a,b)=>a.name.localeCompare(b.name,'ja'));
                 
-                // ★ シャッフル配列を初期化
+                // ★ 修正: 対応拡張子フィルタリング
+                playlist = data.files.filter(file => {
+                    const lowerName = file.name.toLowerCase();
+                    return SUPPORTED_EXTENSIONS.some(ext => lowerName.endsWith(ext));
+                }).sort((a,b) => a.name.localeCompare(b.name,'ja'));
+                
                 generateShuffleIndices();
 
                 const listEl = document.getElementById('song-list');
@@ -282,7 +298,6 @@
                 
                 if (playlist.length === 0 && autoPlay && playScope === 'all') {
                     setTimeout(() => { 
-                        // ★ 全フォルダ・シャッフル時はランダムに次のフォルダへ
                         if (isShuffle) {
                              const randomFolder = allFolders[Math.floor(Math.random() * allFolders.length)];
                              loadSongs(randomFolder.id, randomFolder.name, true);
@@ -296,7 +311,6 @@
                 
                 if (autoPlay && playlist.length > 0) {
                     if (isShuffle) {
-                        // シャッフル時はシャッフル配列の0番目から開始
                         playTrack(shuffleIndices[0]);
                     } else {
                         playTrack(0);
@@ -319,7 +333,6 @@
             
             currentIndex = index;
             
-            // ★ 手動再生された場合、シャッフルインデックスもそれに合わせる（同期とる）
             if (isShuffle) {
                 const foundIdx = shuffleIndices.indexOf(index);
                 if (foundIdx !== -1) shuffleIndex = foundIdx;
@@ -364,33 +377,28 @@
             if (repeatMode === 2) { playTrack(currentIndex); return; }
             
             if (playScope === 'all' && isShuffle && playlist.length === 0) {
-                 // プレイリストが空の場合の安全策
                  loadSongs(allFolders[Math.floor(Math.random() * allFolders.length)].id, "", true); 
                  return;
             }
 
             let next;
             if (isShuffle) {
-                // ★ シャッフル: 配列の次の曲へ
                 shuffleIndex++;
                 if (shuffleIndex >= shuffleIndices.length) {
-                    // 全曲再生したらリシャッフルして最初へ
                     if (playScope === 'all') {
-                        // 全フォルダモードなら次のフォルダへ飛んでリセット
                         const randomFolder = allFolders[Math.floor(Math.random() * allFolders.length)];
                         loadSongs(randomFolder.id, randomFolder.name, true);
                         return;
-                    } else if (repeatMode === 1) { // ALLリピートONなら
+                    } else if (repeatMode === 1) { 
                         generateShuffleIndices();
                         shuffleIndex = 0;
-                    } else { // リピートOFFなら停止
+                    } else { 
                         audio.pause(); 
                         return;
                     }
                 }
                 next = shuffleIndices[shuffleIndex];
             } else {
-                // ★ 通常再生
                 next = currentIndex + 1;
                 if (next >= playlist.length) {
                     if (repeatMode === 1) next = 0; 
@@ -405,13 +413,11 @@
         }
 
         function prevTrack() { 
-            // シャッフル中は「履歴を戻る」動作が理想だが、簡易的に前のインデックスへ
             if (isShuffle) {
                 if (shuffleIndex > 0) {
                     shuffleIndex--;
                     playTrack(shuffleIndices[shuffleIndex]);
                 } else {
-                    // 先頭の場合は曲の頭出し（または最後の曲へ）
                     playTrack(shuffleIndices[0]);
                 }
             } else {
@@ -432,17 +438,14 @@
             document.getElementById('mode-shuffle').classList.toggle('active', isShuffle); 
             document.getElementById('mode-normal').classList.toggle('active', !isShuffle); 
             
-            // ★ モード変更時にシャッフル配列を再生成
             if (isShuffle) {
                 generateShuffleIndices();
-                // 現在再生中の曲をリストの先頭に持ってくる（違和感防止）
                 const currentInShuffle = shuffleIndices.indexOf(currentIndex);
                 if (currentInShuffle !== -1) {
                     [shuffleIndices[0], shuffleIndices[currentInShuffle]] = [shuffleIndices[currentInShuffle], shuffleIndices[0]];
                     shuffleIndex = 0;
                 }
             }
-            
             saveSettings(); 
         }
         function setSleepTimer() {
@@ -462,7 +465,6 @@
         audio.onended = nextTrack;
         audio.onplay = () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; updatePlayPauseUI(true); };
         audio.onpause = () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; updatePlayPauseUI(false); };
-        // ★ エラー時は自動で次へ（非対応フォーマット対策）
         audio.onerror = (e) => { 
             console.log("Playback Error, skipping...");
             setTimeout(() => { nextTrack(); }, 1000); 
