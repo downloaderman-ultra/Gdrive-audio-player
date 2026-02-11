@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Music Ver.1.5.8.5</title>
+    <title>G-Drive Music Ver.1.5.8.6</title>
     <style>
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 10px; position: relative; }
         .version-tag { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; color: #666; }
@@ -72,7 +72,7 @@
 </head>
 <body>
 
-    <div class="version-tag">Ver.1.5.8.5</div>
+    <div class="version-tag">Ver.1.5.8.6</div>
     <h1>G-Drive Music</h1>
     
     <button id="auth-btn" class="hidden" onclick="handleAuthClick()" style="max-width:200px; margin:20px auto;">Googleドライブに接続</button>
@@ -340,7 +340,6 @@
             document.getElementById(`song-${index}`)?.classList.add('playing');
             document.getElementById(`song-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             
-            // UI先読み更新
             document.getElementById('song-title').innerText = track.name + " (読込中...)";
             updateMediaSession(track.name); 
 
@@ -426,11 +425,19 @@
         audio.onended = nextTrack;
         audio.onplay = () => updatePlayPauseUI(true);
         audio.onpause = () => updatePlayPauseUI(false);
-        audio.onerror = () => { console.log("Audio Error"); };
+        
+        // ★Ver.1.5.8.6 での追加：WMAなどの非対応ファイル対策★
+        audio.onerror = (e) => {
+            console.error("Playback error", audio.error);
+            // エラーが発生したら自動スキップ（1秒待機してから）
+            // これにより、WMAなどは自動的に飛ばされる
+            setTimeout(() => {
+                nextTrack();
+            }, 1000);
+        };
 
         function updateMediaSession(title) {
             if ('mediaSession' in navigator) {
-                // 再生状態を明示的にセット（Pausedの場合もここで上書きされる可能性があるが、操作時なのでOK）
                 navigator.mediaSession.playbackState = 'playing';
 
                 navigator.mediaSession.metadata = new MediaMetadata({
@@ -441,13 +448,12 @@
                 });
 
                 navigator.mediaSession.setActionHandler('play', () => { 
-                    navigator.mediaSession.playbackState = 'playing'; // 即時反映
+                    navigator.mediaSession.playbackState = 'playing'; 
                     resumeOrPlay(); 
                 });
                 navigator.mediaSession.setActionHandler('pause', () => { 
-                    navigator.mediaSession.playbackState = 'paused'; // 即時反映
+                    navigator.mediaSession.playbackState = 'paused'; 
                     audio.pause(); 
-                    // ★重要: 停止時もパネルを維持するためにメタデータ再送
                     updateMediaSessionPaused(title);
                 });
                 navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
@@ -457,7 +463,6 @@
             }
         }
 
-        // 停止時専用の更新関数（パネル維持用）
         function updateMediaSessionPaused(title) {
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.playbackState = 'paused';
@@ -474,10 +479,8 @@
              if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
         });
         audio.addEventListener('pause', () => {
-             // pauseイベント発火時にもパネル維持を試みる
              if('mediaSession' in navigator) {
                  navigator.mediaSession.playbackState = 'paused';
-                 // 再生中の曲があればその情報を維持
                  if(playlist.length > 0) updateMediaSessionPaused(playlist[currentIndex].name);
              }
         });
