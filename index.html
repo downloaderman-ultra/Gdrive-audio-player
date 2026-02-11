@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Music Ver.1.5.9.7</title>
+    <title>G-Drive Music Ver.1.5.9.8</title>
     <style>
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 10px; position: relative; display: flex; flex-direction: column; height: 95vh; }
         .version-tag { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; color: #666; }
@@ -39,7 +39,7 @@
     </style>
 </head>
 <body>
-    <div class="version-tag">Ver.1.5.9.7</div>
+    <div class="version-tag">Ver.1.5.9.8</div>
     <h1>G-Drive Music</h1>
     <button id="auth-btn" class="hidden" onclick="handleAuthClick()" style="max-width:200px; margin:20px auto;">Googleドライブに接続</button>
     <div id="song-title">接続中...</div>
@@ -104,13 +104,11 @@
 
         let shuffleIndices = []; 
         let shuffleIndex = 0;
-
-        // ★ Ver.1.5.9.7 追加変数: 全フォルダシャッフル用
-        let folderShuffleIndices = [];      // フォルダ自体のシャッフル順序
-        let currentFolderShuffleIndex = 0;  // 現在どのフォルダ順序にいるか
-        let folderCache = {};               // フォルダごとの曲リストをキャッシュ { folderId: [songs...] }
-        let playedHistory = {};             // フォルダごとの再生済み曲ID管理 { folderId: [songId1, songId2...] }
-        let globalHistory = [];             // 戻るボタン用の完全な履歴 [{folderId, songIndex}, ...]
+        let folderShuffleIndices = [];
+        let currentFolderShuffleIndex = 0;
+        let folderCache = {};
+        let playedHistory = {};
+        let globalHistory = [];
 
         const audio = document.getElementById('audio-player');
         const volumeSlider = document.getElementById('volume-slider');
@@ -209,7 +207,6 @@
             localStorage.setItem(STORE_KEY, JSON.stringify(settings));
         }
 
-        // プレイリスト用シャッフル（通常モード用）
         function generateShuffleIndices() {
             shuffleIndices = Array.from({length: playlist.length}, (_, i) => i);
             for (let i = shuffleIndices.length - 1; i > 0; i--) {
@@ -219,7 +216,6 @@
             shuffleIndex = 0;
         }
 
-        // ★ フォルダ自体のシャッフル（全フォルダモード用）
         function generateFolderShuffleIndices() {
             folderShuffleIndices = Array.from({length: allFolders.length}, (_, i) => i);
             for (let i = folderShuffleIndices.length - 1; i > 0; i--) {
@@ -229,6 +225,19 @@
             currentFolderShuffleIndex = 0;
         }
 
+        // ★ 名前整形関数 (拡張子削除 & 表示用)
+        function formatTrackName(name) {
+            // 最後のドット以降（拡張子）を削除
+            return name.replace(/\.[^/.]+$/, "");
+        }
+
+        // ★ 表示用タイトル生成 (アーティスト名 + 曲名)
+        function getDisplayTitle(folderName, fileName) {
+            const cleanName = formatTrackName(fileName);
+            // フォルダ名が「Unknown」などの場合は曲名のみ、それ以外は[Artist] Song形式
+            return `[${folderName}] ${cleanName}`;
+        }
+
         async function loadFolders() {
             try {
                 const query = `'${PARENT_ID}' in parents and mimeType = 'application/vnd.google-apps.folder'`;
@@ -236,9 +245,7 @@
                 if(resp.status === 401) { refreshAccessToken(); return; }
                 const data = await resp.json();
                 allFolders = data.files.sort((a,b)=>a.name.localeCompare(b.name,'ja'));
-                
-                generateFolderShuffleIndices(); // フォルダリスト作成時に初期化
-
+                generateFolderShuffleIndices(); 
                 const listEl = document.getElementById('folder-list'); listEl.innerHTML = '';
                 allFolders.forEach(f => {
                     const btn = document.createElement('div'); btn.className = 'item-btn';
@@ -249,7 +256,6 @@
             } catch(e) { console.error(e); }
         }
 
-        // ★ loadSongs 改良: キャッシュ対応 & 1曲ランダムピックモード追加
         async function loadSongs(folderId, folderName, autoPlay, pickRandomUnique = false) {
             currentFolderId = folderId; currentFolderName = folderName; saveSettings();
             document.getElementById('song-title').innerText = `${folderName} を読込中...`;
@@ -258,7 +264,6 @@
 
             try {
                 let files = [];
-                // ★ キャッシュ確認
                 if (folderCache[folderId]) {
                     files = folderCache[folderId];
                 } else {
@@ -266,9 +271,8 @@
                     const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,mimeType)`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
                     if(resp.status === 401) { refreshAccessToken(); return; }
                     const data = await resp.json();
-                    // フィルタリング
                     files = data.files.filter(file => audio.canPlayType(file.mimeType) !== "").sort((a,b) => a.name.localeCompare(b.name,'ja'));
-                    folderCache[folderId] = files; // キャッシュ保存
+                    folderCache[folderId] = files;
                 }
 
                 playlist = files;
@@ -276,37 +280,29 @@
 
                 const listEl = document.getElementById('song-list'); listEl.innerHTML = '';
                 playlist.forEach((s, idx) => {
-                    const btn = document.createElement('div'); btn.className = 'item-btn'; btn.id = `song-${idx}`; btn.innerText = s.name;
+                    const btn = document.createElement('div'); btn.className = 'item-btn'; btn.id = `song-${idx}`;
+                    // ★ リスト表示も拡張子なしに
+                    btn.innerText = formatTrackName(s.name);
                     btn.onclick = () => playTrack(idx); listEl.appendChild(btn);
                 });
                 document.getElementById('song-title').innerText = `${folderName} (${playlist.length}曲)`;
 
                 if (playlist.length === 0) {
-                    if (autoPlay && playScope === 'all') {
-                         setTimeout(nextTrack, 500); // 空なら次へ
-                    }
+                    if (autoPlay && playScope === 'all') { setTimeout(nextTrack, 500); }
                     return;
                 }
 
-                // ★ 全フォルダシャッフル時の特別ロジック: 未再生の曲を1つ選んで再生
                 if (pickRandomUnique) {
                     if (!playedHistory[folderId]) playedHistory[folderId] = [];
-                    // まだ再生していない曲のインデックス一覧
                     let unplayedIndices = playlist.map((_, i) => i).filter(i => !playedHistory[folderId].includes(playlist[i].id));
-                    
-                    // 全曲再生済みなら履歴リセット
                     if (unplayedIndices.length === 0) {
                         playedHistory[folderId] = [];
                         unplayedIndices = playlist.map((_, i) => i);
                     }
-
-                    // ランダムに1つ選ぶ
                     const randIdx = unplayedIndices[Math.floor(Math.random() * unplayedIndices.length)];
                     playedHistory[folderId].push(playlist[randIdx].id);
-                    
                     playTrack(randIdx);
                 } else if (autoPlay) {
-                    // 通常再生
                     playTrack(isShuffle ? shuffleIndices[0] : 0);
                 }
 
@@ -326,18 +322,16 @@
             if (playlist.length === 0) return;
             currentIndex = index;
             
-            // 通常シャッフル（フォルダ内）の同期
-            if (isShuffle && !folderCache) { // folderCacheがない=通常モード的な簡易判定
+            if (isShuffle && !folderCache) {
                  const foundIdx = shuffleIndices.indexOf(index);
                  if (foundIdx !== -1) shuffleIndex = foundIdx;
             }
 
-            // ★ グローバル履歴への追加（戻るボタン用）
+            // 履歴更新 (拡張子なしタイトルなども保存しておくと良いが、ここではID管理)
             const lastHistory = globalHistory[globalHistory.length - 1];
-            // 重複追加防止 (今の曲と同じなら追加しない)
             if (!lastHistory || lastHistory.folderId !== currentFolderId || lastHistory.songIndex !== index) {
                 globalHistory.push({ folderId: currentFolderId, songIndex: index });
-                if (globalHistory.length > 50) globalHistory.shift(); // 履歴は50件まで
+                if (globalHistory.length > 50) globalHistory.shift();
             }
 
             const track = playlist[index];
@@ -345,9 +339,13 @@
             const targetBtn = document.getElementById(`song-${index}`);
             if (targetBtn) { targetBtn.classList.add('playing'); targetBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
             
-            document.getElementById('song-title').innerText = track.name + " (読込中...)";
+            // ★ タイトル表示変更
+            const displayTitle = getDisplayTitle(currentFolderName, track.name);
+            document.getElementById('song-title').innerText = displayTitle + " (読込中...)";
+            
             if ('mediaSession' in navigator) {
-                navigator.mediaSession.metadata = new MediaMetadata({ title: track.name, artist: 'G-Drive Music', album: currentFolderName, artwork: [{ src: ARTWORK_DATA, sizes: '64x64', type: 'image/png' }] });
+                // ★ MediaSessionにも整形済みタイトルを通知
+                navigator.mediaSession.metadata = new MediaMetadata({ title: formatTrackName(track.name), artist: currentFolderName, album: 'G-Drive Music', artwork: [{ src: ARTWORK_DATA, sizes: '64x64', type: 'image/png' }] });
                 navigator.mediaSession.playbackState = 'playing'; 
                 try { navigator.mediaSession.setPositionState(); } catch(e) {} 
             }
@@ -359,35 +357,26 @@
                 .then(r => { if (r.status === 401) throw new Error('401'); return r.blob(); })
                 .then(blob => {
                     audio.src = URL.createObjectURL(blob); audio.volume = volumeSlider.value;
-                    document.getElementById('song-title').innerText = track.name;
+                    document.getElementById('song-title').innerText = displayTitle;
                     audio.play().catch(e => {});
                 }).catch(err => { if(err.message.includes('401')) refreshAccessToken(); });
         }
 
-        // ★ nextTrack 改良: 全フォルダシャッフル時は次のフォルダへ飛ぶ
         function nextTrack() {
             if (repeatMode === 2) { playTrack(currentIndex); return; }
-
-            // ★ 全フォルダ + シャッフル の場合
             if (playScope === 'all' && isShuffle) {
                 currentFolderShuffleIndex++;
                 if (currentFolderShuffleIndex >= folderShuffleIndices.length) {
-                    generateFolderShuffleIndices(); // 一周したらフォルダ順序もリシャッフル
-                    currentFolderShuffleIndex = 0;
+                    generateFolderShuffleIndices(); currentFolderShuffleIndex = 0;
                 }
-                const nextFolderIdx = folderShuffleIndices[currentFolderShuffleIndex];
-                const nextFolder = allFolders[nextFolderIdx];
-                // 別のフォルダへ移動し、ランダムに1曲再生するモードでロード
+                const nextFolder = allFolders[folderShuffleIndices[currentFolderShuffleIndex]];
                 loadSongs(nextFolder.id, nextFolder.name, true, true);
                 return;
             }
-
-            // 以下、通常モード（フォルダ内再生）
             if (isShuffle) {
                 shuffleIndex++;
                 if (shuffleIndex >= shuffleIndices.length) {
                     if (playScope === 'all') {
-                        // 順次再生の全フォルダモード（次のフォルダへ）
                         const nextIdx = (allFolders.findIndex(f => f.id === currentFolderId) + 1) % allFolders.length;
                         loadSongs(allFolders[nextIdx].id, allFolders[nextIdx].name, true); return;
                     } else if (repeatMode === 1) { generateShuffleIndices(); shuffleIndex = 0; }
@@ -407,37 +396,23 @@
             }
         }
 
-        // ★ prevTrack 改良: フォルダをまたいで戻れるように履歴スタックを使用
         function prevTrack() { 
             if (audio.currentTime > 3) { audio.currentTime = 0; return; }
-
-            // 履歴から戻る（全フォルダシャッフル対応）
             if (globalHistory.length > 1) {
-                globalHistory.pop(); // 今の曲を消す
-                const prev = globalHistory[globalHistory.length - 1]; // 一つ前の曲情報
-                
+                globalHistory.pop(); 
+                const prev = globalHistory[globalHistory.length - 1]; 
                 if (prev.folderId !== currentFolderId) {
-                    // フォルダが違うなら移動して再生
                     const targetFolder = allFolders.find(f => f.id === prev.folderId);
                     if (targetFolder) {
-                        loadSongs(targetFolder.id, targetFolder.name, false).then(() => {
-                            playTrack(prev.songIndex);
-                        });
+                        loadSongs(targetFolder.id, targetFolder.name, false).then(() => { playTrack(prev.songIndex); });
                         return;
                     }
-                } else {
-                    playTrack(prev.songIndex);
-                    return;
-                }
+                } else { playTrack(prev.songIndex); return; }
             }
-
-            // 履歴がない場合のフォールバック（通常動作）
             if (isShuffle) {
                 if (shuffleIndex > 0) { shuffleIndex--; playTrack(shuffleIndices[shuffleIndex]); }
                 else playTrack(shuffleIndices[0]);
-            } else {
-                playTrack((currentIndex - 1 + playlist.length) % playlist.length); 
-            }
+            } else { playTrack((currentIndex - 1 + playlist.length) % playlist.length); }
         }
 
         function changeScope(scope) { playScope = scope; document.getElementById('scope-folder').className = `scope-btn ${scope === 'folder' ? 'active' : ''}`; document.getElementById('scope-all').className = `scope-btn ${scope === 'all' ? 'active' : ''}`; saveSettings(); }
@@ -453,9 +428,7 @@
             document.getElementById('mode-normal').classList.toggle('active', !isShuffle); 
             if (isShuffle && playlist.length > 0) {
                 generateShuffleIndices();
-                // フォルダシャッフル順序もリセット
                 generateFolderShuffleIndices();
-                // 今の曲を先頭に
                 const cur = shuffleIndices.indexOf(currentIndex);
                 if (cur !== -1) { [shuffleIndices[0], shuffleIndices[cur]] = [shuffleIndices[cur], shuffleIndices[0]]; shuffleIndex = 0; }
             }
