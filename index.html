@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>G-Drive Music Ver.1.5.9.28</title>
+    <title>G-Drive Music Ver.1.5.9.29</title>
     <style>
         * { box-sizing: border-box; }
 
@@ -13,7 +13,7 @@
             height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
         }
 
-        /* チェックボックス (共通スタイル) */
+        /* カスタムチェックボックス */
         input[type="checkbox"] {
             appearance: none; -webkit-appearance: none;
             width: 16px; height: 16px;
@@ -24,7 +24,7 @@
             position: relative;
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
-            margin: 0; /* リセット */
+            margin: 0;
         }
         input[type="checkbox"]:checked {
             background-color: #1DB954; border-color: #1DB954;
@@ -35,7 +35,7 @@
             transform: rotate(45deg); margin-bottom: 2px;
         }
 
-        /* ヘッダー */
+        /* アプリヘッダー */
         .header-area { 
             flex: 0 0 auto; padding: 10px; background: #181818; border-bottom: 1px solid #333; 
             z-index: 10; height: 70px; display: flex; flex-direction: column; justify-content: center;
@@ -72,16 +72,16 @@
             display: flex; flex-direction: column; height: 100%; overflow: hidden;
         }
         
-        /* ★修正: リストヘッダー (左寄せにしてアイテムと軸を合わせる) */
+        /* ★修正: リストヘッダー (相対配置にして、チェックボックスを絶対配置で左に固定) */
         .list-header {
-            display: flex; align-items: center; 
-            justify-content: flex-start; /* 左寄せ */
-            padding: 6px; /* アイテム行と同じパディング */
-            background: #252525; border-bottom: 1px solid #333; flex-shrink: 0;
+            position: relative; /* 子要素の基準点 */
+            display: flex; align-items: center; justify-content: center; /* 文字は中央 */
+            padding: 6px; background: #252525; border-bottom: 1px solid #333; flex-shrink: 0;
         }
-        /* ヘッダーのチェックボックス (アイテム行と同じマージン) */
+        /* ヘッダーのチェックボックス (絶対配置で左端へ) */
         #check-all-folders {
-            margin-right: 8px; 
+            position: absolute;
+            left: 6px; /* リスト行のpaddingと同じ位置 */
         }
         .list-header h4 { font-size: 0.7rem; margin: 0; color: #888; }
         
@@ -90,35 +90,42 @@
         /* フォルダリストアイテム */
         .folder-item-row {
             display: flex; align-items: center; border-bottom: 1px solid #2a2a2a;
-            padding: 0 6px; /* ヘッダーと合わせる */
-            width: 100%;
+            padding: 0 6px; width: 100%;
         }
-        .folder-check { 
-            margin-right: 8px; /* ヘッダーと合わせる */
-        }
-        /* ★修正: アイコンの右余白を詰める */
-        .folder-icon { 
-            font-size: 14px; margin-right: 2px; color: #ccc; flex-shrink: 0; 
-        }
+        .folder-check { margin-right: 8px; }
+        .folder-icon { font-size: 14px; margin-right: 4px; color: #ccc; flex-shrink: 0; }
+        
+        /* ★修正: フォルダ名ボタン (左寄せを強制) */
         .folder-btn {
-            flex: 1; text-align: left; background: transparent; padding: 12px 0; border: none;
-            font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
-            cursor: pointer; color: #ccc;
+            flex: 1; 
+            background: transparent; border: none; padding: 12px 0; 
+            font-size: 12px; color: #ccc; cursor: pointer;
+            
+            /* ここが重要: Flexboxの中身を左寄せにする */
+            display: flex; justify-content: flex-start; text-align: left;
+            
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
         }
         .folder-btn.current-folder { color: #fff; font-weight: bold; }
         .folder-item-row.active-row { border-left: 3px solid #1DB954; background: #222; }
 
-        /* 曲リスト (中央寄せヘッダーのまま) */
+        /* 曲リスト */
         .song-header-center {
             display: flex; align-items: center; justify-content: center;
             padding: 6px; background: #252525; border-bottom: 1px solid #333; flex-shrink: 0;
         }
         .song-header-center h4 { font-size: 0.7rem; margin: 0; color: #888; }
 
+        /* 曲ボタン (中央寄せのままがいい場合はこのまま。左寄せなら justify-content: flex-start に変更可) */
+        /* 今回は指示がないのでデフォルトのボタンスタイル(center)が適用されるが、見やすくするために左寄せ推奨 */
         .item-btn { 
-            width: 100%; text-align: left; background: transparent; padding: 10px 4px; 
-            font-size: 12px; border-bottom: 1px solid #2a2a2a; border-top:none; border-left:none; border-right:none;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: #ccc; 
+            width: 100%; background: transparent; padding: 10px 4px; border: none;
+            border-bottom: 1px solid #2a2a2a; 
+            font-size: 12px; color: #ccc; cursor: pointer;
+            
+            display: flex; justify-content: flex-start; text-align: left; /* 曲名も左寄せの方が見やすい */
+            
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
         }
         .item-btn:active { background: #333; }
         .item-btn.playing { color: #1DB954; font-weight: bold; background: #222; }
@@ -141,10 +148,11 @@
 
         .control-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
         
+        /* 共通ボタン (これのせいでフォルダ名が中央になっていた) */
         button, select { 
             background: #333; color: white; border: none; padding: 0; border-radius: 6px; 
             cursor: pointer; font-size: 13px; width: 100%; height: 48px; 
-            display: flex; align-items: center; justify-content: center;
+            display: flex; align-items: center; justify-content: center; /* 基本は中央 */
         }
         button:active { background: #555; }
         button.active { background: #1DB954; color: #fff; font-weight: bold; }
@@ -187,7 +195,7 @@
 </head>
 <body>
     <div class="header-area">
-        <div class="version-tag">Ver.1.5.9.28</div>
+        <div class="version-tag">Ver.1.5.9.29</div>
         <h1>G-Drive Music</h1>
         <div class="marquee-container">
             <div id="song-title" class="marquee-text">接続待機中...</div>
