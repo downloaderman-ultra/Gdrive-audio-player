@@ -3,57 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>G-Drive Music Ver.1.5.9.21</title>
+    <title>G-Drive Music Ver.1.5.9.23</title>
     <style>
         * { box-sizing: border-box; }
 
         body { 
             font-family: sans-serif; background: #121212; color: white; 
             text-align: center; margin: 0; padding: 0; 
-            height: 100dvh; /* 画面の高さに完全一致 */
-            display: flex; flex-direction: column; 
-            overflow: hidden;
+            height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
         }
 
-        /* 1. ヘッダー */
+        /* ヘッダー */
         .header-area { 
-            flex: 0 0 auto; padding: 5px 10px; background: #181818; border-bottom: 1px solid #333; 
-            z-index: 10;
+            flex: 0 0 auto; padding: 10px; background: #181818; border-bottom: 1px solid #333; 
+            z-index: 10; height: 70px; display: flex; flex-direction: column; justify-content: center;
         }
-        .version-tag { position: absolute; top: 8px; right: 10px; font-size: 0.7rem; color: #666; }
-        h1 { font-size: 1.0rem; margin: 0; color: #aaa; line-height: 1.2; }
-        #song-title { 
-            margin: 4px 0 0 0; font-weight: bold; color: #1DB954; font-size: 0.95rem; 
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 1.3em;
+        .version-tag { position: absolute; top: 10px; right: 10px; font-size: 0.7rem; color: #666; }
+        h1 { font-size: 1.1rem; margin: 0; color: #aaa; line-height: 1.2; }
+        
+        .marquee-container {
+            width: 100%; overflow: hidden; white-space: nowrap; position: relative;
+            margin-top: 5px; height: 1.4em;
+        }
+        .marquee-text {
+            display: inline-block; padding-left: 100%;
+            animation: marquee 15s linear infinite;
+            font-weight: bold; color: #1DB954; font-size: 1.0rem;
+        }
+        @keyframes marquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100%); }
         }
 
-        /* 認証ボタン */
         #auth-btn { background: #1DB954; color: white; font-weight: bold; border: 1px solid #fff; padding: 15px; width: 80%; margin: 50px auto; }
 
-        /* 2. メインコンテナ */
+        /* メインコンテナ */
         #main-container {
-            flex: 1; /* 残りの高さを埋める */
-            display: flex; flex-direction: column;
-            min-height: 0; 
-            width: 100%; max-width: 600px; margin: 0 auto;
-            position: relative;
+            flex: 1; display: flex; flex-direction: column; min-height: 0; 
+            width: 100%; max-width: 600px; margin: 0 auto; position: relative;
         }
 
-        /* 2-A. リストエリア (自動的に狭くなる) */
+        /* リストエリア */
         .lists-wrapper {
-            flex: 1; /* 余ったスペースを使う */
-            min-height: 0; /* 潰れてもOK */
-            display: grid; grid-template-columns: 1fr 1.5fr; gap: 5px;
-            padding: 5px;
-            overflow: hidden;
+            flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1.5fr; gap: 5px;
+            padding: 5px; overflow: hidden;
         }
         .list-box { 
             background: #1e1e1e; border-radius: 4px; border: 1px solid #333; 
-            display: flex; flex-direction: column; 
-            height: 100%; overflow: hidden;
+            display: flex; flex-direction: column; height: 100%; overflow: hidden;
         }
         .list-box h4 { 
-            font-size: 0.7rem; margin: 0; padding: 4px; color: #888; 
+            font-size: 0.7rem; margin: 0; padding: 6px; color: #888; 
             background: #252525; border-bottom: 1px solid #333; text-align: center; flex-shrink: 0; 
         }
         .scroll-area { flex: 1; overflow-y: auto; }
@@ -67,22 +67,16 @@
         .item-btn.playing { color: #1DB954; font-weight: bold; background: #222; }
         .item-btn.current-folder { color: #fff; border-left: 3px solid #1DB954; }
 
-        /* 2-B. 操作パネル (固定サイズ・拡大版) */
+        /* 操作パネル */
         .controls-wrapper {
-            flex: 0 0 auto; /* 伸縮禁止 */
-            padding: 8px 10px;
-            background: #121212;
-            border-top: 1px solid #222;
+            flex: 0 0 auto; padding: 8px 10px; background: #121212; border-top: 1px solid #222;
         }
         
-        /* ビジュアライザー (縦幅拡大) */
         #visualizer-container { width: 100%; height: 60px; background: #000; margin-bottom: 8px; border-radius: 6px; border: 1px solid #333; }
         #visualizer { width: 100%; height: 100%; display: block; }
         
-        /* 音量コントロール (移動済み) */
         .volume-controls { 
-            display: flex; align-items: center; gap: 8px; 
-            background: #222; padding: 0 10px; border-radius: 6px; 
+            display: flex; align-items: center; gap: 8px; background: #222; padding: 0 10px; border-radius: 6px; 
             height: 40px; margin-bottom: 8px;
         }
         .volume-label { font-size: 0.7rem; color: #aaa; flex-shrink: 0; }
@@ -92,40 +86,40 @@
 
         .control-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
         
-        /* ボタン (厚みアップ) */
         button, select { 
             background: #333; color: white; border: none; padding: 0; border-radius: 6px; 
-            cursor: pointer; font-size: 13px; width: 100%; 
-            height: 48px; /* 厚みアップ */
+            cursor: pointer; font-size: 13px; width: 100%; height: 48px; 
             display: flex; align-items: center; justify-content: center;
         }
         button:active { background: #555; }
         button.active { background: #1DB954; color: #fff; font-weight: bold; }
         select { text-align: center; text-align-last: center; appearance: none; border: 1px solid #444; }
 
-        /* 再生ボタン (さらに厚く) */
         .big-play-btn { width: 100%; background: #333; font-size: 1.2rem; font-weight: bold; height: 64px; margin-bottom: 0; border-radius: 8px; }
         .big-play-btn.active { background: #1DB954; }
 
-        /* 3. 下部メニュー (固定) */
+        /* 下部メニュー */
         .bottom-menu {
-            flex: 0 0 auto; /* 伸縮禁止 */
-            height: 50px; width: 100%; background: #1a1a1a; 
-            border-top: 1px solid #333; 
-            display: flex; gap: 1px; padding: 2px;
+            flex: 0 0 auto; height: 50px; width: 100%; background: #1a1a1a; 
+            border-top: 1px solid #333; display: flex; gap: 1px; padding: 2px;
         }
-        .menu-btn {
-            flex: 1; background: #333; color: #ccc; font-size: 12px; 
-            border-radius: 4px; margin: 0 1px; height: 100%;
-        }
+        .menu-btn { flex: 1; background: #333; color: #ccc; font-size: 12px; border-radius: 4px; margin: 0 1px; height: 100%; }
         .menu-btn.active { background: #1DB954; color: #fff; font-weight: bold; }
 
-        /* ログオーバーレイ */
+        /* ログ・設定オーバーレイ */
         #log-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.95); z-index: 3000;
             display: none; flex-direction: column; padding: 20px;
         }
+        .settings-box {
+            background: #222; padding: 15px; border-radius: 8px; border: 1px solid #444;
+            margin-bottom: 15px; text-align: left;
+        }
+        .settings-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .settings-row span { font-size: 14px; color: #ccc; }
+        .settings-row select { width: 100px; height: 30px; background: #333; color: #fff; border: 1px solid #555; }
+
         #log-content {
             flex: 1; background: #111; border: 1px solid #444; color: #ccc;
             padding: 10px; overflow-y: scroll; text-align: left; font-size: 11px;
@@ -138,18 +132,19 @@
 </head>
 <body>
     <div class="header-area">
-        <div class="version-tag">Ver.1.5.9.21</div>
+        <div class="version-tag">Ver.1.5.9.23</div>
         <h1>G-Drive Music</h1>
-        <div id="song-title">接続待機中...</div>
+        <div class="marquee-container">
+            <div id="song-title" class="marquee-text">接続待機中...</div>
+        </div>
     </div>
 
     <button id="auth-btn" class="hidden" onclick="handleAuthClick()">Googleドライブに接続</button>
 
     <div id="main-container" class="hidden">
-        
         <div class="lists-wrapper">
             <div class="list-box">
-                <h4>フォルダ</h4>
+                <h4>フォルダリスト</h4>
                 <div id="folder-list" class="scroll-area"></div>
             </div>
             <div class="list-box">
@@ -160,7 +155,6 @@
 
         <div class="controls-wrapper">
             <div id="visualizer-container"><canvas id="visualizer"></canvas></div>
-            
             <div class="volume-controls">
                 <span class="volume-label">VOL</span>
                 <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1.0">
@@ -173,17 +167,20 @@
                 <button onclick="changeMode('shuffle')" id="mode-shuffle">シャッフル</button>
                 <button onclick="toggleRepeat()" id="repeat-btn">リピート: OFF</button>
                 
-                <button onclick="prevTrack()">戻る</button>
-                <button onclick="skip(10)">+10秒</button>
+                <button onclick="prevTrack()">&lt;&lt; 戻り</button>
+                <button onclick="skipBack()" id="btn-skip-back">-10秒</button>
                 <select id="sleep-timer" onchange="setSleepTimer()">
                     <option value="0">タイマー: OFF</option>
                     <option value="30">30分</option>
                     <option value="60">60分</option>
+                    <option value="90">90分</option>
                     <option value="120">120分</option>
+                    <option value="150">150分</option>
+                    <option value="180">180分</option>
                 </select>
                 
-                <button onclick="nextTrack()">進む</button>
-                <button onclick="skip(-10)">-10秒</button>
+                <button onclick="nextTrack()">送り &gt;&gt;</button>
+                <button onclick="skipFwd()" id="btn-skip-fwd">+10秒</button>
                 <button onclick="toggleUserPause()" id="btn-pause">一時停止</button>
             </div>
             
@@ -198,7 +195,19 @@
     </div>
 
     <div id="log-overlay">
-        <h3 style="color:#0f0; margin:0 0 10px 0;">Logs</h3>
+        <h3 style="color:#0f0; margin:0 0 10px 0;">Settings & Logs</h3>
+        
+        <div class="settings-box">
+            <div class="settings-row">
+                <span>送り秒数 (Forward)</span>
+                <select id="setting-fwd" onchange="updateSkipSettings()"></select>
+            </div>
+            <div class="settings-row">
+                <span>戻り秒数 (Backward)</span>
+                <select id="setting-back" onchange="updateSkipSettings()"></select>
+            </div>
+        </div>
+
         <div id="log-content">ログはありません</div>
         <div class="log-actions">
             <button onclick="copyLog()">コピー</button>
@@ -219,6 +228,11 @@
         let isShuffle = false, repeatMode = 0, playScope = 'folder'; 
         let sleepTimeout = null, sleepInterval = null;
         let currentFolderId = null, currentFolderName = "";
+        
+        // スキップ設定 (初期値)
+        let skipFwdVal = 10;
+        let skipBackVal = 10;
+
         let isRetry = false, lastPositionUpdate = 0;
         let shuffleIndices = [], shuffleIndex = 0;
         let folderShuffleIndices = [], currentFolderShuffleIndex = 0;
@@ -231,6 +245,17 @@
         const ARTWORK_DATA = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAVklEQVRo3u3RAREAMAwDkZm/6RqmEA0fLgW1790dPCZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGibgAS76A/1z768hAAAAAElFTkSuQmCC';
 
         volumeSlider.addEventListener('input', (e) => { audio.volume = e.target.value; saveSettings(); });
+
+        // 設定用プルダウンの生成 (1~30秒)
+        function initSkipSettings() {
+            const fwdSelect = document.getElementById('setting-fwd');
+            const backSelect = document.getElementById('setting-back');
+            for(let i=1; i<=30; i++) {
+                fwdSelect.add(new Option(i + "秒", i));
+                backSelect.add(new Option(i + "秒", i));
+            }
+        }
+        initSkipSettings();
 
         setTimeout(() => {
             const title = document.getElementById('song-title');
@@ -248,11 +273,33 @@
             area.innerText = appLogs.join('\n');
             area.scrollTop = area.scrollHeight;
         }
-        function toggleLog() { document.getElementById('log-overlay').classList.toggle('hidden'); }
+        
+        function toggleLog() { 
+            const el = document.getElementById('log-overlay');
+            el.classList.toggle('hidden');
+            if (!el.classList.contains('hidden')) {
+                 document.getElementById('log-content').scrollTop = document.getElementById('log-content').scrollHeight;
+            }
+        }
         function copyLog() {
             navigator.clipboard.writeText(appLogs.join('\n')).then(() => alert("コピーしました")).catch(e => alert("失敗: " + e));
         }
 
+        // --- 設定反映 ---
+        function updateSkipSettings() {
+            skipFwdVal = parseInt(document.getElementById('setting-fwd').value);
+            skipBackVal = parseInt(document.getElementById('setting-back').value);
+            
+            document.getElementById('btn-skip-fwd').innerText = `+${skipFwdVal}秒`;
+            document.getElementById('btn-skip-back').innerText = `-${skipBackVal}秒`;
+            
+            saveSettings();
+        }
+
+        function skipFwd() { skip(skipFwdVal); }
+        function skipBack() { skip(-skipBackVal); }
+
+        // --- Auth ---
         function gapiLoaded() { gapi.load('client', () => {}); }
         function gisLoaded() {
             tokenClient = google.accounts.oauth2.initTokenClient({
@@ -287,6 +334,7 @@
             tokenClient.requestAccessToken(config);
         }
 
+        // --- Init ---
         async function initApp() {
             const saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
             if (saved.isShuffle !== undefined) isShuffle = saved.isShuffle;
@@ -294,6 +342,13 @@
             if (saved.playScope !== undefined) changeScope(saved.playScope);
             if (saved.volume !== undefined) { volumeSlider.value = saved.volume; audio.volume = saved.volume; }
             
+            // スキップ設定の復元
+            if (saved.skipFwdVal) skipFwdVal = saved.skipFwdVal;
+            if (saved.skipBackVal) skipBackVal = saved.skipBackVal;
+            document.getElementById('setting-fwd').value = skipFwdVal;
+            document.getElementById('setting-back').value = skipBackVal;
+            updateSkipSettings(); // ボタン表示更新
+
             changeMode(isShuffle ? 'shuffle' : 'normal');
             setupMediaSessionHandlers();
             
@@ -332,7 +387,13 @@
             }
         }
         function saveSettings() {
-            localStorage.setItem(STORE_KEY, JSON.stringify({ folderId: currentFolderId, folderName: currentFolderName, isShuffle: isShuffle, repeatMode: repeatMode, playScope: playScope, volume: volumeSlider.value }));
+            const settings = { 
+                folderId: currentFolderId, folderName: currentFolderName, 
+                isShuffle: isShuffle, repeatMode: repeatMode, playScope: playScope, 
+                volume: volumeSlider.value,
+                skipFwdVal: skipFwdVal, skipBackVal: skipBackVal 
+            };
+            localStorage.setItem(STORE_KEY, JSON.stringify(settings));
         }
 
         function generateShuffleIndices() {
@@ -370,7 +431,13 @@
 
         async function loadSongs(folderId, folderName, autoPlay, pickRandomUnique = false) {
             currentFolderId = folderId; currentFolderName = folderName; saveSettings();
-            document.getElementById('song-title').innerText = `${folderName} 読込中...`;
+            
+            const titleEl = document.getElementById('song-title');
+            titleEl.innerText = `${folderName} 読込中...`;
+            titleEl.style.animation = 'none'; 
+            void titleEl.offsetWidth; 
+            titleEl.style.animation = 'marquee 15s linear infinite';
+
             document.querySelectorAll('#folder-list .item-btn').forEach(b => b.classList.remove('current-folder'));
             document.getElementById(`folder-${folderId}`)?.classList.add('current-folder');
 
@@ -392,7 +459,8 @@
                     const btn = document.createElement('div'); btn.className = 'item-btn'; btn.id = `song-${idx}`;
                     btn.innerText = formatTrackName(s.name); btn.onclick = () => playTrack(idx); listEl.appendChild(btn);
                 });
-                document.getElementById('song-title').innerText = `${folderName} (${playlist.length}曲)`;
+                
+                titleEl.innerText = `${folderName} (${playlist.length}曲)`;
                 
                 if (playlist.length === 0) {
                     addLog(`Empty: ${folderName}`);
@@ -431,8 +499,13 @@
             if (targetBtn) { targetBtn.classList.add('playing'); targetBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
             
             const displayTitle = getDisplayTitle(currentFolderName, track.name);
-            document.getElementById('song-title').innerText = displayTitle + " (読込中)";
+            const titleEl = document.getElementById('song-title');
+            titleEl.innerText = displayTitle + " (読込中)";
             
+            titleEl.style.animation = 'none';
+            void titleEl.offsetWidth;
+            titleEl.style.animation = 'marquee 15s linear infinite';
+
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.metadata = new MediaMetadata({ title: formatTrackName(track.name), artist: currentFolderName, album: 'G-Drive', artwork: [{ src: ARTWORK_DATA, sizes: '64x64', type: 'image/png' }] });
                 navigator.mediaSession.playbackState = 'playing'; 
@@ -445,7 +518,7 @@
                 .then(r => { if (r.status === 401) throw new Error('401'); return r.blob(); })
                 .then(blob => {
                     audio.src = URL.createObjectURL(blob); audio.volume = volumeSlider.value;
-                    document.getElementById('song-title').innerText = displayTitle;
+                    titleEl.innerText = displayTitle;
                     audio.play().catch(e => { addLog(`PlayFail: ${track.name}`); setTimeout(nextTrack, 1000); });
                     addLog(`Playing: ${track.name}`);
                 }).catch(err => { 
@@ -454,7 +527,6 @@
                 });
         }
 
-        // --- Auto Skip ---
         audio.onpause = () => {
             if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
             updatePlayPauseUI(false);
@@ -465,7 +537,6 @@
         audio.onended = () => { addLog("End -> Next"); nextTrack(); };
         audio.onerror = (e) => { addLog(`AudioErr -> Skip`); setTimeout(() => nextTrack(), 1000); };
 
-        // --- Controls ---
         function nextTrack() {
             if (repeatMode === 2) { playTrack(currentIndex); return; }
             if (playScope === 'all' && isShuffle) {
@@ -526,7 +597,7 @@
         audio.onwaiting = () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; };
         function setupMediaSessionHandlers() {
             if ('mediaSession' in navigator) {
-                const handlers = [['play', resumeOrPlay], ['pause', toggleUserPause], ['previoustrack', prevTrack], ['nexttrack', nextTrack], ['seekbackward', () => skip(-10)], ['seekforward', () => skip(10)]];
+                const handlers = [['play', resumeOrPlay], ['pause', toggleUserPause], ['previoustrack', prevTrack], ['nexttrack', nextTrack], ['seekbackward', () => skip(-skipBackVal)], ['seekforward', () => skip(skipFwdVal)]];
                 for (const [a, h] of handlers) { try { navigator.mediaSession.setActionHandler(a, h); } catch (e) {} }
             }
         }
