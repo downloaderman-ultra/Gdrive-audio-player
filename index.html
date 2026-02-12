@@ -3,339 +3,210 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Player Ver.1.5.9.14</title>
+    <title>G-Drive Player Ver.1.5.9.9 (Auto-Skip Patch)</title>
     <style>
-        /* Ver.1.5.9.9 ベースのスタイルに戻しました */
-        body { 
-            background: #000; color: #0f0; font-family: monospace; 
-            text-align: center; margin: 0; padding: 20px; 
-            padding-bottom: 80px; /* 下部メニューの分、余白を空ける */
+        body { background: #000; color: #0f0; font-family: monospace; text-align: center; margin: 0; padding: 20px; box-sizing: border-box; }
+        #canvas { width: 100%; height: 200px; background: #111; margin-top: 20px; border-bottom: 1px solid #333; }
+        .info-area { margin: 20px 0; min-height: 60px; }
+        #folder-name { color: #888; font-size: 0.9em; margin-bottom: 5px; }
+        #song-title { font-size: 1.2em; font-weight: bold; color: #fff; word-break: break-all; }
+        
+        .controls { display: flex; justify-content: center; gap: 20px; margin: 30px 0; }
+        button { 
+            padding: 15px 30px; 
+            font-size: 16px; 
+            cursor: pointer; 
+            background: #222; 
+            color: #fff; 
+            border: 1px solid #444; 
+            border-radius: 50px; 
+            touch-action: manipulation;
         }
-
-        /* 情報エリア */
-        .info-area { margin-bottom: 20px; }
-        #folder-name { color: #888; font-size: 14px; margin-bottom: 5px; }
-        #song-title { font-size: 18px; font-weight: bold; color: #fff; word-break: break-all; }
-
-        /* ビジュアライザー */
-        #canvas { width: 100%; height: 200px; background: #111; border-bottom: 1px solid #333; margin-bottom: 20px; }
-
-        /* メイン操作ボタン (横並びを強制) */
-        .controls { 
-            display: flex; flex-direction: row; justify-content: center; align-items: center; 
-            gap: 20px; margin-top: 10px; width: 100%;
+        button:active { background: #444; }
+        .active { background: #0f0; color: #000; border: none; font-weight: bold; }
+        
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 9999;
         }
-        .ctrl-btn { 
-            padding: 15px 30px; font-size: 16px; cursor: pointer; 
-            background: #222; color: #fff; border: 1px solid #444; border-radius: 50px; 
-            white-space: nowrap;
-        }
-        .ctrl-btn:active { background: #444; }
-        .active-play { background: #0f0; color: #000; border: none; font-weight: bold; }
         .hidden { display: none !important; }
-
-        /* ★下部メニュー (固定配置・均等幅) */
-        .bottom-menu {
-            position: fixed; bottom: 0; left: 0; width: 100%; height: 60px;
-            background: #1a1a1a; border-top: 1px solid #333;
-            display: flex; z-index: 1000;
-        }
-        .menu-btn {
-            flex: 1; /* 3等分 */
-            background: transparent; border: none; border-right: 1px solid #333;
-            color: #aaa; font-size: 14px; cursor: pointer;
-            padding: 0; margin: 0;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .menu-btn:last-child { border-right: none; }
-        .menu-btn:active { background: #333; color: #fff; }
-
-        /* ログ画面 */
-        #log-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.95); z-index: 2000; 
-            display: none; flex-direction: column; padding: 20px; box-sizing: border-box;
-        }
-        #log-area {
-            flex: 1; background: #111; border: 1px solid #444; color: #ccc;
-            padding: 10px; overflow-y: scroll; text-align: left; font-size: 12px;
-            white-space: pre-wrap; margin-bottom: 10px; font-family: monospace;
-        }
-        .log-controls { display: flex; gap: 10px; height: 50px; }
-        .log-action-btn { flex: 1; background: #333; color: #fff; border: 1px solid #555; cursor: pointer; }
-
-        /* ロード画面 */
-        #loading {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center;
-            z-index: 3000; color: #fff;
-        }
     </style>
 </head>
 <body>
 
-    <div id="loading">Google認証 待機中...</div>
+    <div id="loading-overlay">
+        <div id="status-text">Google認証を待機中...</div>
+    </div>
 
     <div class="info-area">
         <div id="folder-name">---</div>
-        <div id="song-title">Music Player</div>
+        <div id="song-title">Ready</div>
     </div>
-
+    
     <canvas id="canvas"></canvas>
 
     <div class="controls">
-        <button id="prevBtn" class="ctrl-btn">Prev</button>
-        <button id="bigPlay" class="ctrl-btn active-play">再生</button>
-        <button id="pauseBtn" class="ctrl-btn hidden">停止</button>
-        <button id="nextBtn" class="ctrl-btn">Next</button>
-    </div>
-
-    <div class="bottom-menu">
-        <button class="menu-btn" onclick="setShuffleMode('folder')">フォルダ内</button>
-        <button class="menu-btn" onclick="setShuffleMode('all')">全フォルダ内</button>
-        <button class="menu-btn" onclick="toggleLog()">Log</button>
-    </div>
-
-    <div id="log-overlay">
-        <h3 style="color:#0f0; margin-top:0;">System Logs</h3>
-        <div id="log-area">ログはありません</div>
-        <div class="log-controls">
-            <button class="log-action-btn" onclick="copyLog()">ログをコピー</button>
-            <button class="log-action-btn" onclick="toggleLog()">閉じる</button>
-        </div>
+        <button id="prevBtn">Prev</button>
+        <button id="bigPlay" class="active">再生</button>
+        <button id="pauseBtn" class="hidden">一時停止</button>
+        <button id="nextBtn">Next</button>
     </div>
 
     <audio id="audioPlayer" crossorigin="anonymous"></audio>
 
     <script>
-        // ★CLIENT_ID (以前のログから抽出)
-        const CLIENT_ID = '870566274257-1e240kru9vef55k8ke7odf522tn7i864.apps.googleusercontent.com';
+        // --- 設定と状態管理 ---
+        const CLIENT_ID = 'YOUR_CLIENT_ID'; // ★ここにクライアントIDを入れてください
+        const API_KEY = 'YOUR_API_KEY';     // ★ここにAPIキーを入れてください
+        const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
         
         let tokenClient;
         let accessToken = null;
-        let allFiles = [];      
-        let playQueue = [];     
+        let allFiles = [];      // APIから取得した生データ
+        let playQueue = [];     // 再生順序リスト
         let currentIndex = 0;
-        let isExplicitPause = false;
-        let logs = [];          
-
+        let isExplicitPause = false; // ★自動スキップ判定用フラグ
         let audioCtx, analyser, source, canvas, canvasCtx;
         let isVisualizerInit = false;
 
         const audio = document.getElementById('audioPlayer');
-        const loading = document.getElementById('loading');
+        const bigPlay = document.getElementById('bigPlay');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const statusText = document.getElementById('status-text');
 
-        // --- ログ機能 ---
-        function addLog(msg) {
-            const time = new Date().toLocaleTimeString('ja-JP', {hour12:false});
-            const line = `[${time}] ${msg}`;
-            logs.push(line);
-            console.log(line);
-            
-            const area = document.getElementById('log-area');
-            area.innerText = logs.join('\n');
-            area.scrollTop = area.scrollHeight;
-        }
-
-        function toggleLog() {
-            const el = document.getElementById('log-overlay');
-            el.style.display = (el.style.display === 'flex') ? 'none' : 'flex';
-        }
-
-        function copyLog() {
-            navigator.clipboard.writeText(logs.join('\n')).then(() => alert('コピー完了')).catch(e => alert('コピー失敗'));
-        }
-
-        // --- 認証 ---
+        // --- 1. Google認証と初期化 (1時間の壁対策) ---
         function gisLoaded() {
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID,
-                scope: 'https://www.googleapis.com/auth/drive.readonly',
+                scope: SCOPES,
                 callback: async (resp) => {
-                    if (resp.error) {
-                        addLog("Auth Error: " + JSON.stringify(resp));
-                        return;
-                    }
+                    if (resp.error) throw resp;
                     accessToken = resp.access_token;
-                    loading.innerText = "ファイルリスト取得中...";
-                    addLog("認証成功");
-                    await fetchFileList();
+                    statusText.innerText = "ファイルリスト取得中...";
+                    await fetchFiles();
                 },
             });
+            // 初回認証
             tokenClient.requestAccessToken({prompt: ''});
-            setInterval(() => tokenClient.requestAccessToken({prompt: ''}), 50 * 60 * 1000);
+
+            // 50分ごとにトークンを裏でリフレッシュ
+            setInterval(() => {
+                console.log("Token refreshing...");
+                tokenClient.requestAccessToken({prompt: ''});
+            }, 50 * 60 * 1000);
         }
 
-        // --- ファイル取得 ---
-        async function fetchFileList() {
+        function gapiLoaded() {
+            gapi.load('client', () => {
+                gapi.client.init({ apiKey: API_KEY, discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'] });
+            });
+        }
+
+        // --- 2. ファイル取得とシャッフル (フォルダ跨ぎ) ---
+        async function fetchFiles() {
             try {
-                const q = encodeURIComponent("mimeType contains 'audio/' and trashed = false");
-                const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,parents)&pageSize=1000`;
+                // 音声ファイルのみ検索
+                let response = await gapi.client.drive.files.list({
+                    pageSize: 1000,
+                    fields: 'files(id, name, parents, mimeType)',
+                    q: "mimeType contains 'audio/' and trashed = false"
+                });
                 
-                const res = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-                const data = await res.json();
-                allFiles = data.files || [];
-                
-                if (allFiles.length === 0) {
-                    loading.innerText = "音声ファイルなし";
+                const files = response.result.files;
+                if (!files || files.length === 0) {
+                    statusText.innerText = "音声ファイルが見つかりません";
                     return;
                 }
-                
-                addLog(`取得数: ${allFiles.length}`);
-                setShuffleMode('all');
-                
-                loading.style.display = 'none';
 
-            } catch (e) {
-                loading.innerText = "Error";
-                addLog("Fetch Error: " + e.message);
+                // フォルダごとに分類
+                const folders = {};
+                files.forEach(f => {
+                    const pid = f.parents ? f.parents[0] : 'root';
+                    if (!folders[pid]) folders[pid] = [];
+                    folders[pid].push(f);
+                });
+
+                // フォルダ跨ぎシャッフル生成
+                playQueue = createSmartShuffle(folders);
+                statusText.innerText = `準備完了 (${playQueue.length}曲)`;
+                setTimeout(() => {
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                }, 1000);
+
+            } catch (err) {
+                statusText.innerText = "エラー: " + JSON.stringify(err);
             }
-        }
-
-        // --- モード切替 ---
-        function setShuffleMode(mode) {
-            addLog(`モード: ${mode}`);
-            if (mode === 'all') {
-                playQueue = createSmartShuffle(groupByFolder(allFiles));
-            } else {
-                let currentFolderId = null;
-                if (playQueue.length > 0 && playQueue[currentIndex]) {
-                    currentFolderId = (playQueue[currentIndex].parents && playQueue[currentIndex].parents[0]);
-                } else if (allFiles.length > 0) {
-                    currentFolderId = (allFiles[0].parents && allFiles[0].parents[0]);
-                }
-                
-                if (currentFolderId) {
-                    const folderFiles = allFiles.filter(f => f.parents && f.parents[0] === currentFolderId);
-                    playQueue = folderFiles.sort(() => Math.random() - 0.5);
-                    addLog(`フォルダ固定: ${folderFiles.length}曲`);
-                }
-            }
-            currentIndex = 0;
-            updateTitle("リスト更新完了");
-        }
-
-        function groupByFolder(files) {
-            const folders = {};
-            files.forEach(f => {
-                const pid = (f.parents && f.parents[0]) ? f.parents[0] : 'root';
-                if (!folders[pid]) folders[pid] = [];
-                folders[pid].push(f);
-            });
-            return folders;
         }
 
         function createSmartShuffle(foldersObj) {
-            let keys = Object.keys(foldersObj);
-            keys.sort(() => Math.random() - 0.5);
-            keys.forEach(k => foldersObj[k].sort(() => Math.random() - 0.5));
+            let folderKeys = Object.keys(foldersObj);
+            // フォルダの順番自体をシャッフル
+            folderKeys.sort(() => Math.random() - 0.5);
+            
+            // 各フォルダの中身もシャッフル
+            folderKeys.forEach(k => foldersObj[k].sort(() => Math.random() - 0.5));
 
             let queue = [];
-            let maxLen = Math.max(...keys.map(k => foldersObj[k].length));
+            let maxLen = Math.max(...folderKeys.map(k => foldersObj[k].length));
 
+            // 各フォルダから1つずつ取り出す
             for (let i = 0; i < maxLen; i++) {
-                keys.forEach(key => {
-                    if (foldersObj[key][i]) queue.push(foldersObj[key][i]);
+                folderKeys.forEach(key => {
+                    if (foldersObj[key][i]) {
+                        // フォルダ名(ID)をメタデータとして付与
+                        foldersObj[key][i].folderId = key; 
+                        queue.push(foldersObj[key][i]);
+                    }
                 });
             }
             return queue;
         }
 
-        // --- 再生処理 ---
+        // --- 3. 再生処理 (Blob使用・ビジュアライザー連携) ---
         async function playTrack(index) {
-            if (playQueue.length === 0) return;
             if (index >= playQueue.length) index = 0;
             if (index < 0) index = playQueue.length - 1;
             currentIndex = index;
 
             const track = playQueue[index];
-            isExplicitPause = false;
+            isExplicitPause = false; // フラグ初期化
 
-            updateTitle(track.name);
-            updateButtonState(true);
+            // UI更新
+            document.getElementById('song-title').innerText = track.name;
+            document.getElementById('folder-name').innerText = `Folder: ${track.folderId.slice(-6)}...`; // 簡易表示
+            updateButtonState('playing');
 
+            // Blobとして取得（再生安定化のため）
             try {
-                if (audio.src) URL.revokeObjectURL(audio.src);
-                
+                if (audio.src) URL.revokeObjectURL(audio.src); // メモリ解放
+
                 const res = await fetch(`https://www.googleapis.com/drive/v3/files/${track.id}?alt=media`, {
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
                 
-                if (!res.ok) throw new Error(res.status);
+                if (!res.ok) throw new Error('Network response was not ok');
                 
                 const blob = await res.blob();
                 audio.src = URL.createObjectURL(blob);
                 
+                // ビジュアライザー起動 (初回のみ)
                 if (!isVisualizerInit) initVisualizer();
+                if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+
                 await audio.play();
-                
-                addLog(`再生: ${track.name}`);
                 setupMediaSession(track);
 
             } catch (e) {
-                addLog(`エラー(スキップ): ${track.name}`);
-                setTimeout(() => handleNext(), 1500);
+                console.error("再生失敗:", e);
+                // 失敗したら次へ (救済)
+                setTimeout(() => handleNext(), 1000);
             }
         }
 
-        // --- 自動救済 ---
-        audio.onpause = () => {
-            if (audio.duration && audio.currentTime >= audio.duration - 0.5) return;
-            if (isExplicitPause) return;
-            
-            addLog(`!! 異常停止 -> 自動スキップ`);
-            setTimeout(() => handleNext(), 1000);
-        };
-
-        audio.onended = () => { handleNext(); };
-        audio.onerror = () => { setTimeout(() => handleNext(), 1500); };
-
-        // --- UI更新 ---
-        function updateTitle(text) {
-            document.getElementById('song-title').innerText = text;
-            const track = playQueue[currentIndex];
-            if (track) {
-                const fid = (track.parents && track.parents[0]) ? track.parents[0] : '---';
-                document.getElementById('folder-name').innerText = `[${currentIndex+1}/${playQueue.length}] ${fid.slice(-4)}`;
-            }
-        }
-
-        function updateButtonState(isPlaying) {
-            const bigPlay = document.getElementById('bigPlay');
-            const pauseBtn = document.getElementById('pauseBtn');
-            if (isPlaying) {
-                bigPlay.classList.add('hidden');
-                pauseBtn.classList.remove('hidden');
-                pauseBtn.classList.add('active-play');
-            } else {
-                pauseBtn.classList.add('hidden');
-                bigPlay.classList.remove('hidden');
-                bigPlay.classList.add('active-play');
-            }
-        }
-
-        // --- 操作 ---
-        function handleNext() { playTrack(currentIndex + 1); }
-        function handlePrev() {
-            if (audio.currentTime > 3) audio.currentTime = 0;
-            else playTrack(currentIndex - 1);
-        }
-        
-        function togglePlay() {
-            if (audio.paused) {
-                isExplicitPause = false;
-                audio.play();
-                updateButtonState(true);
-                addLog("再開(手動)");
-            } else {
-                isExplicitPause = true;
-                audio.pause();
-                updateButtonState(false);
-                addLog("一時停止(手動)");
-            }
-        }
-
-        // --- ビジュアライザー ---
+        // --- 4. ビジュアライザー (AudioContext) ---
         function initVisualizer() {
             try {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -344,44 +215,151 @@
                 source.connect(analyser);
                 analyser.connect(audioCtx.destination);
                 analyser.fftSize = 256;
+
                 canvas = document.getElementById('canvas');
                 canvasCtx = canvas.getContext('2d');
                 isVisualizerInit = true;
                 draw();
-            } catch(e) { console.log(e); }
+            } catch (e) {
+                console.log("ビジュアライザー初期化エラー:", e);
+            }
         }
 
         function draw() {
             if (!isVisualizerInit) return;
             requestAnimationFrame(draw);
-            const data = new Uint8Array(analyser.frequencyBinCount);
-            analyser.getByteFrequencyData(data);
+
+            // 画面OFF等の負荷軽減用（オプション）
+            // if (document.hidden) return; 
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+
             canvasCtx.fillStyle = '#111';
-            canvasCtx.fillRect(0,0,canvas.width,canvas.height);
-            const w = (canvas.width / data.length) * 2.5;
-            data.forEach((v, i) => {
-                canvasCtx.fillStyle = `rgb(0,${v+100},50)`;
-                canvasCtx.fillRect(i*w, canvas.height - v/2, w-1, v/2);
-            });
+            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const barWidth = (canvas.width / bufferLength) * 2.5;
+            let barHeight;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                barHeight = dataArray[i] / 1.5;
+                // 色を緑基調のグラデーションに
+                canvasCtx.fillStyle = `rgb(0, ${barHeight + 100}, 50)`;
+                canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+                x += barWidth + 1;
+            }
         }
 
-        // --- MediaSession ---
+        // --- 5. 操作ハンドラと救済ロジック ---
+
+        function handleNext() {
+            playTrack(currentIndex + 1);
+        }
+
+        function handlePrev() {
+            // インテリジェントな戻る (3秒ルール)
+            if (audio.currentTime > 3) {
+                audio.currentTime = 0;
+            } else {
+                playTrack(currentIndex - 1);
+            }
+        }
+
+        function togglePlay() {
+            if (audio.paused) {
+                isExplicitPause = false;
+                audio.play();
+                updateButtonState('playing');
+            } else {
+                isExplicitPause = true;
+                audio.pause();
+                updateButtonState('paused');
+            }
+        }
+
+        function updateButtonState(state) {
+            if (state === 'playing') {
+                bigPlay.classList.add('hidden');
+                pauseBtn.classList.remove('hidden');
+                pauseBtn.classList.add('active');
+            } else {
+                pauseBtn.classList.add('hidden');
+                bigPlay.classList.remove('hidden');
+                bigPlay.classList.add('active');
+            }
+        }
+
+        // ★★★ 自動スキップ救済ロジック (NEW) ★★★
+        audio.addEventListener('pause', () => {
+            // 正常終了の場合は 'ended' が呼ばれるのでここでは無視
+            // ただし、環境によっては ended 前に pause が呼ばれることもあるので判定
+            if (audio.currentTime >= audio.duration - 0.5) return;
+
+            // ユーザーがボタンを押した場合は無視
+            if (isExplicitPause) return;
+
+            console.warn("異常停止を検知 (救済発動): 次の曲へスキップします");
+            setTimeout(() => handleNext(), 1500); // 1.5秒後にスキップ
+        });
+
+        audio.addEventListener('ended', () => handleNext()); // 正常終了時
+
+        audio.addEventListener('error', (e) => {
+            console.error("オーディオエラー:", e);
+            setTimeout(() => handleNext(), 1500);
+        });
+
+        // ボタンイベント
+        bigPlay.addEventListener('click', togglePlay);
+        pauseBtn.addEventListener('click', togglePlay);
+        document.getElementById('nextBtn').addEventListener('click', handleNext);
+        document.getElementById('prevBtn').addEventListener('click', handlePrev);
+
+        // --- 6. MediaSession & OS通知連携 ---
         function setupMediaSession(track) {
             if ('mediaSession' in navigator) {
-                navigator.mediaSession.metadata = new MediaMetadata({ title: track.name });
-                navigator.mediaSession.setActionHandler('play', () => { isExplicitPause=false; audio.play(); updateButtonState(true); });
-                navigator.mediaSession.setActionHandler('pause', () => { isExplicitPause=true; audio.pause(); updateButtonState(false); });
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: track.name,
+                    artist: 'G-Drive Player',
+                    album: 'Ver.1.5.9.9'
+                });
+                
+                // ハンドラ登録（重複なし）
+                navigator.mediaSession.setActionHandler('play', () => {
+                    isExplicitPause = false;
+                    audio.play();
+                    updateButtonState('playing');
+                });
+                navigator.mediaSession.setActionHandler('pause', () => {
+                    isExplicitPause = true;
+                    audio.pause();
+                    updateButtonState('paused');
+                });
                 navigator.mediaSession.setActionHandler('previoustrack', handlePrev);
                 navigator.mediaSession.setActionHandler('nexttrack', handleNext);
             }
         }
 
-        document.getElementById('bigPlay').onclick = togglePlay;
-        document.getElementById('pauseBtn').onclick = togglePlay;
-        document.getElementById('nextBtn').onclick = handleNext;
-        document.getElementById('prevBtn').onclick = handlePrev;
+        // 通知ラグ対策（スロットリング）
+        let lastTimeUpdate = 0;
+        audio.ontimeupdate = () => {
+            const now = Date.now();
+            if (now - lastTimeUpdate > 1000) {
+                if ('mediaSession' in navigator) {
+                    navigator.mediaSession.setPositionState({
+                        duration: audio.duration || 0,
+                        playbackRate: audio.playbackRate,
+                        position: audio.currentTime
+                    });
+                }
+                lastTimeUpdate = now;
+            }
+        };
 
     </script>
     <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+    <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
 </body>
 </html>
