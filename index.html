@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>G-Drive Music Ver.1.5.9.26</title>
+    <title>G-Drive Music Ver.1.5.9.27</title>
     <style>
         * { box-sizing: border-box; }
 
@@ -11,6 +11,32 @@
             font-family: sans-serif; background: #121212; color: white; 
             text-align: center; margin: 0; padding: 0; 
             height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        /* カスタムチェックボックス (黒背景・グレー枠) */
+        input[type="checkbox"] {
+            appearance: none; -webkit-appearance: none;
+            width: 16px; height: 16px;
+            background-color: #121212; /* 背景色と同じ黒 */
+            border: 1px solid #888;    /* 文字色と同じグレー */
+            border-radius: 3px;
+            cursor: pointer;
+            position: relative;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        /* チェック時のスタイル */
+        input[type="checkbox"]:checked {
+            background-color: #1DB954; /* 緑 */
+            border-color: #1DB954;
+        }
+        input[type="checkbox"]:checked::after {
+            content: '';
+            width: 4px; height: 8px;
+            border: solid black;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+            margin-bottom: 2px;
         }
 
         /* ヘッダー */
@@ -40,8 +66,7 @@
             width: 100%; max-width: 600px; margin: 0 auto; position: relative;
         }
 
-        /* リストエリア (比率調整: 1.15 : 1.35) */
-        /* チェックボックス分だけ少し広げ、曲リストも十分確保 */
+        /* リストエリア (比率 1.15 : 1.35) */
         .lists-wrapper {
             flex: 1; min-height: 0; display: grid; grid-template-columns: 1.15fr 1.35fr; gap: 5px;
             padding: 5px; overflow: hidden;
@@ -50,22 +75,21 @@
             background: #1e1e1e; border-radius: 4px; border: 1px solid #333; 
             display: flex; flex-direction: column; height: 100%; overflow: hidden;
         }
-        /* ヘッダー (全選択チェックボックス入り) */
         .list-header {
-            display: flex; align-items: center; justify-content: center; gap: 5px;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
             padding: 6px; background: #252525; border-bottom: 1px solid #333; flex-shrink: 0;
         }
         .list-header h4 { font-size: 0.7rem; margin: 0; color: #888; }
-        .header-check { transform: scale(1.2); cursor: pointer; }
-
+        
         .scroll-area { flex: 1; overflow-y: auto; }
         
         /* フォルダリストアイテム */
         .folder-item-row {
             display: flex; align-items: center; border-bottom: 1px solid #2a2a2a;
-            padding: 0 4px; width: 100%;
+            padding: 0 6px; width: 100%;
         }
-        .folder-check { transform: scale(1.3); margin-right: 8px; cursor: pointer; flex-shrink: 0; }
+        .folder-check { margin-right: 8px; }
+        .folder-icon { font-size: 14px; margin-right: 6px; color: #ccc; flex-shrink: 0; }
         .folder-btn {
             flex: 1; text-align: left; background: transparent; padding: 12px 0; border: none;
             font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
@@ -87,7 +111,6 @@
         .controls-wrapper {
             flex: 0 0 auto; padding: 8px 10px; background: #121212; border-top: 1px solid #222;
         }
-        
         #visualizer-container { width: 100%; height: 60px; background: #000; margin-bottom: 8px; border-radius: 6px; border: 1px solid #333; }
         #visualizer { width: 100%; height: 100%; display: block; }
         
@@ -148,7 +171,7 @@
 </head>
 <body>
     <div class="header-area">
-        <div class="version-tag">Ver.1.5.9.26</div>
+        <div class="version-tag">Ver.1.5.9.27</div>
         <h1>G-Drive Music</h1>
         <div class="marquee-container">
             <div id="song-title" class="marquee-text">接続待機中...</div>
@@ -161,7 +184,7 @@
         <div class="lists-wrapper">
             <div class="list-box">
                 <div class="list-header">
-                    <input type="checkbox" id="check-all-folders" class="header-check" checked onclick="toggleAllFolders(this.checked)">
+                    <input type="checkbox" id="check-all-folders" class="folder-check" checked onclick="toggleAllFolders(this.checked)">
                     <h4>フォルダリスト</h4>
                 </div>
                 <div id="folder-list" class="scroll-area"></div>
@@ -257,7 +280,7 @@
 
         const audio = document.getElementById('audio-player');
         const volumeSlider = document.getElementById('volume-slider');
-        const ARTWORK_DATA = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAVklEQVRo3u3RAREAMAwDkZm/6RqmEA0fLgW1790dPCZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGibgAS76A/1z768hAAAAAElFTkSuQmCC';
+        const ARTWORK_DATA = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAVklEQVRo3u3RAREAMAwDkZm/6RqmEA0fLgW1790dPCZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGibgAS76A/1z768hAAAAAElFTkSuQmCC';
 
         volumeSlider.addEventListener('input', (e) => { audio.volume = e.target.value; saveSettings(); });
 
@@ -448,11 +471,15 @@
                     check.checked = selectedFolderIds.includes(f.id);
                     check.onclick = (e) => { e.stopPropagation(); toggleFolder(f.id, check.checked); };
                     
+                    const icon = document.createElement('span');
+                    icon.className = 'folder-icon';
+                    icon.innerText = '📁';
+
                     const btn = document.createElement('button'); btn.className = 'folder-btn';
                     if(f.id === currentFolderId) btn.classList.add('current-folder');
                     btn.innerText = f.name; btn.onclick = () => loadSongs(f.id, f.name, true);
                     
-                    row.appendChild(check); row.appendChild(btn); listEl.appendChild(row);
+                    row.appendChild(check); row.appendChild(icon); row.appendChild(btn); listEl.appendChild(row);
                 });
                 document.getElementById('check-all-folders').checked = (selectedFolderIds.length === allFolders.length);
                 addLog(`Folders: ${allFolders.length}`);
