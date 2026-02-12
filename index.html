@@ -3,111 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Music Ver.1.5.9.17</title>
+    <title>G-Drive Music Ver.1.5.9.18</title>
     <style>
-        /* 画面全体のレイアウト定義 */
+        /* --- 鉄壁の積み木レイアウト --- */
         body { 
             font-family: sans-serif; background: #121212; color: white; 
             text-align: center; margin: 0; padding: 0; 
-            height: 100vh; /* 画面の高さを100%使う */
-            display: flex; flex-direction: column; 
-            overflow: hidden; /* 全体スクロール禁止 */
+            height: 100vh; /* 画面の高さ100% */
+            display: flex; flex-direction: column; /* 縦並び */
+            overflow: hidden; /* 画面全体はスクロールさせない */
         }
 
-        /* ヘッダー (固定) */
-        .header-area { flex-shrink: 0; padding: 5px 10px; border-bottom: 1px solid #333; background: #121212; z-index: 10; }
-        .version-tag { position: absolute; top: 8px; right: 10px; font-size: 0.7rem; color: #666; }
-        h1 { font-size: 1.0rem; margin: 0; color: #888; }
+        /* 1. ヘッダー (固定) */
+        .header-area { flex-shrink: 0; padding: 8px; background: #181818; border-bottom: 1px solid #333; z-index: 10; }
+        .version-tag { position: absolute; top: 10px; right: 10px; font-size: 0.7rem; color: #666; }
+        h1 { font-size: 1.0rem; margin: 0; color: #aaa; }
         #song-title { 
-            margin: 5px 0 0 0; font-weight: bold; color: #1DB954; font-size: 0.95rem; 
+            margin: 5px 0 0 0; font-weight: bold; color: #1DB954; font-size: 0.9rem; 
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 1.2em;
         }
 
-        /* 認証ボタン */
+        /* 認証ボタン (通常隠れている) */
         #auth-btn { background: #1DB954; color: white; font-weight: bold; border: 1px solid #fff; padding: 15px; width: 80%; margin: 50px auto; }
 
-        /* メインUIコンテナ (ここが伸縮する) */
+        /* メインエリア (リスト + 操作盤) */
         #main-ui {
-            flex: 1; /* 残りのスペースを全て使う */
+            flex: 1; /* 残りの高さを全部使う */
             display: flex; flex-direction: column;
-            min-height: 0; /* これ重要：中身が溢れても親を押し広げない */
-            position: relative;
+            min-height: 0; /* 縮小限界を撤廃 */
+            width: 100%; max-width: 600px; margin: 0 auto; /* 横幅制限(PCで見やすく) */
         }
 
-        /* 1. リストエリア (伸縮自在・スクロール担当) */
+        /* 2. リストエリア (ここだけ伸縮・スクロール) */
         .content-container {
-            flex: 1; /* ここが伸び縮みする */
-            min-height: 0; /* 縮小限界をなくす */
-            padding: 10px;
-            overflow: hidden; 
-            display: flex; flex-direction: column;
-        }
-
-        .content-grid { 
-            display: grid; grid-template-columns: 1fr 1.5fr; gap: 8px; 
-            height: 100%; /* 親の高さを使い切る */
+            flex: 1; /* 余ったスペースを埋める */
+            min-height: 0; /* 潰れてもOK */
+            padding: 5px;
+            display: grid; grid-template-columns: 1fr 1.4fr; gap: 5px;
         }
 
         .list-box { 
-            background: #1e1e1e; border-radius: 8px; border: 1px solid #333; 
-            text-align: left; padding: 5px; display: flex; flex-direction: column; 
-            height: 100%; /* Gridの高さを使い切る */
-            overflow: hidden;
+            background: #1e1e1e; border-radius: 4px; border: 1px solid #333; 
+            display: flex; flex-direction: column; 
+            height: 100%; /* 親(content-container)の高さを埋める */
+            overflow: hidden; 
         }
-        .list-box h4 { font-size: 0.7rem; margin: 2px 0 5px 0; color: #666; border-bottom: 1px solid #333; text-align: center; flex-shrink: 0; }
+        .list-box h4 { font-size: 0.7rem; margin: 0; padding: 4px; color: #888; background: #252525; border-bottom: 1px solid #333; text-align: center; flex-shrink: 0; }
         .scroll-area { flex: 1; overflow-y: auto; /* 箱の中でスクロール */ }
         
         .item-btn { 
-            width: 100%; text-align: left; background: transparent; padding: 10px 5px; 
-            border-radius: 4px; font-size: 12px; border-bottom: 1px solid #252525; 
+            width: 100%; text-align: left; background: transparent; padding: 8px 4px; 
+            font-size: 12px; border-bottom: 1px solid #2a2a2a; 
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: #ccc; 
         }
         .item-btn:active { background: #333; }
         .item-btn.playing { color: #1DB954; font-weight: bold; background: #222; }
         .item-btn.current-folder { color: #fff; border-left: 3px solid #1DB954; }
 
-        /* 2. 操作エリア (固定高さ・最下部へ) */
+        /* 3. 操作エリア (固定・絶対に潰さない) */
         .controls-area {
-            flex-shrink: 0; /* 絶対に縮ませない */
-            background: #181818;
-            border-top: 1px solid #333;
-            padding: 5px 10px 5px 10px; /* 下部メニューとの隙間はbodyのpaddingでなくここで調整 */
-            z-index: 20;
+            flex-shrink: 0; /* 縮小禁止 */
+            padding: 5px 10px;
+            background: #121212;
+            border-top: 1px solid #222;
         }
 
-        /* パーツ定義 */
-        #visualizer-container { width: 100%; height: 30px; background: #000; margin-bottom: 5px; border-radius: 4px; overflow: hidden; }
+        #visualizer-container { width: 100%; height: 25px; background: #000; margin-bottom: 5px; border-radius: 4px; overflow: hidden; }
         #visualizer { width: 100%; height: 100%; display: block; }
         .timer-info { font-size: 0.7rem; color: #666; height: 1rem; margin-bottom: 2px; }
 
-        .control-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 5px; }
-        button, select { background: #333; color: white; border: none; padding: 8px 0; border-radius: 4px; cursor: pointer; font-size: 11px; width: 100%; }
+        .control-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 6px; }
+        button, select { background: #333; color: white; border: none; padding: 10px 0; border-radius: 4px; cursor: pointer; font-size: 12px; width: 100%; }
         button:active { background: #555; transform: scale(0.98); }
         button.active { background: #1DB954; color: #fff; font-weight: bold; }
         select { text-align: center; text-align-last: center; appearance: none; border: 1px solid #444; }
 
-        .big-play-btn { width: 100%; background: #333; font-size: 1.1rem; font-weight: bold; padding: 10px 0; margin-bottom: 5px; }
+        .big-play-btn { width: 100%; background: #333; font-size: 1.1rem; font-weight: bold; padding: 12px 0; margin-bottom: 8px; border-radius: 6px; }
         .big-play-btn.active { background: #1DB954; }
 
         .volume-controls { 
-            display: flex; align-items: center; gap: 10px; 
-            background: #222; padding: 5px 10px; border-radius: 4px; margin-bottom: 5px; 
+            display: flex; align-items: center; gap: 8px; 
+            background: #222; padding: 8px 10px; border-radius: 4px; margin-bottom: 2px; 
         }
         .volume-label { font-size: 0.7rem; color: #aaa; flex-shrink: 0; }
-        input[type=range] { width: 100%; cursor: pointer; accent-color: #1DB954; height: 15px; margin: 0; }
+        input[type=range] { width: 100%; cursor: pointer; accent-color: #1DB954; height: 20px; margin: 0; }
 
-        /* 3. 下部メニュー (絶対配置) */
+        /* 4. 下部メニュー (固定・最下段) */
         .bottom-menu {
-            height: 55px; width: 100%; background: #1a1a1a; 
-            border-top: 1px solid #333; display: flex; flex-shrink: 0;
+            flex-shrink: 0; /* 縮小禁止 */
+            height: 50px; width: 100%; background: #1a1a1a; 
+            border-top: 1px solid #333; display: flex;
         }
         .menu-btn {
             flex: 1; background: transparent; border: none; border-right: 1px solid #333;
-            color: #888; font-size: 13px; cursor: pointer; padding: 0; margin: 0; border-radius: 0;
-            display: flex; align-items: center; justify-content: center;
+            color: #888; font-size: 12px; cursor: pointer; padding: 0; margin: 0; border-radius: 0;
+            display: flex; align-items: center; justify-content: center; flex-direction: column;
         }
         .menu-btn:last-child { border-right: none; }
-        .menu-btn.active { color: #1DB954; background: #222; font-weight: bold; }
+        .menu-btn.active { color: #1DB954; background: #252525; font-weight: bold; }
+        .menu-btn:active { background: #333; }
 
         /* ログオーバーレイ */
         #log-overlay {
@@ -121,14 +115,14 @@
             white-space: pre-wrap; margin-bottom: 10px; font-family: monospace;
         }
         .log-actions { display: flex; gap: 10px; height: 45px; flex-shrink: 0; }
-        .log-btn { flex: 1; background: #333; border: 1px solid #555; color: #fff; cursor: pointer; font-size: 14px; }
+        .log-btn { flex: 1; background: #333; border: 1px solid #555; color: #fff; cursor: pointer; font-size: 13px; }
 
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
     <div class="header-area">
-        <div class="version-tag">Ver.1.5.9.17</div>
+        <div class="version-tag">Ver.1.5.9.18</div>
         <h1>G-Drive Music</h1>
         <div id="song-title">接続待機中...</div>
     </div>
@@ -136,16 +130,15 @@
     <button id="auth-btn" class="hidden" onclick="handleAuthClick()">Googleドライブに接続</button>
 
     <div id="main-ui" class="hidden">
+        
         <div class="content-container">
-            <div class="content-grid">
-                <div class="list-box">
-                    <h4>フォルダ</h4>
-                    <div id="folder-list" class="scroll-area"></div>
-                </div>
-                <div class="list-box">
-                    <h4>曲リスト</h4>
-                    <div id="song-list" class="scroll-area"></div>
-                </div>
+            <div class="list-box">
+                <h4>フォルダ</h4>
+                <div id="folder-list" class="scroll-area"></div>
+            </div>
+            <div class="list-box">
+                <h4>曲リスト</h4>
+                <div id="song-list" class="scroll-area"></div>
             </div>
         </div>
 
@@ -316,7 +309,7 @@
         function drawVisualizer() {
             animationId = requestAnimationFrame(drawVisualizer); if(!analyser) return;
             analyser.getByteFrequencyData(dataArray);
-            canvasCtx.fillStyle = '#1a1a1a'; canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+            canvasCtx.fillStyle = '#000'; canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
             const barWidth = (canvas.width / dataArray.length) * 2.5;
             let barHeight, x = 0;
             for(let i = 0; i < dataArray.length; i++) {
