@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>G-Drive Music Ver.1.5.9.30</title>
+    <title>G-Drive Music Ver.1.5.9.31</title>
     <style>
         * { box-sizing: border-box; }
 
@@ -13,7 +13,7 @@
             height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
         }
 
-        /* カスタムチェックボックス */
+        /* チェックボックス */
         input[type="checkbox"] {
             appearance: none; -webkit-appearance: none;
             width: 16px; height: 16px;
@@ -62,7 +62,7 @@
             width: 100%; max-width: 600px; margin: 0 auto; position: relative;
         }
 
-        /* リストエリア (1.15 : 1.35) */
+        /* リストエリア */
         .lists-wrapper {
             flex: 1; min-height: 0; display: grid; grid-template-columns: 1.15fr 1.35fr; gap: 5px;
             padding: 5px; overflow: hidden;
@@ -75,25 +75,28 @@
         /* リストヘッダー */
         .list-header {
             position: relative; display: flex; align-items: center; justify-content: center;
-            padding: 6px; background: #252525; border-bottom: 1px solid #333; flex-shrink: 0;
+            padding: 4px; /* ここも少し詰める */
+            background: #252525; border-bottom: 1px solid #333; flex-shrink: 0;
         }
         #check-all-folders { position: absolute; left: 6px; }
         .list-header h4 { font-size: 0.7rem; margin: 0; color: #888; }
         
         .scroll-area { flex: 1; overflow-y: auto; }
         
-        /* フォルダリストアイテム */
+        /* フォルダリスト行 */
         .folder-item-row {
             display: flex; align-items: center; border-bottom: 1px solid #2a2a2a;
             padding: 0 6px; width: 100%;
+            /* 行の高さ自体を少し制限して詰める効果を狙う */
+            min-height: 30px; 
         }
         .folder-check { margin-right: 8px; }
         .folder-icon { font-size: 14px; margin-right: 2px; color: #ccc; flex-shrink: 0; }
         
-        /* ★修正: フォルダボタンのパディングを12pxから10pxに変更し、曲リストと同じ高さにする */
+        /* ★修正: パディングを5pxまで削減 */
         .folder-btn {
             flex: 1; background: transparent; border: none; 
-            padding: 10px 0; /* ここを修正 */
+            padding: 5px 0; /* かなりスリム化 */
             font-size: 12px; color: #ccc; cursor: pointer;
             display: flex; justify-content: flex-start; text-align: left;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
@@ -104,13 +107,15 @@
         /* 曲リスト */
         .song-header-center {
             display: flex; align-items: center; justify-content: center;
-            padding: 6px; background: #252525; border-bottom: 1px solid #333; flex-shrink: 0;
+            padding: 4px; background: #252525; border-bottom: 1px solid #333; flex-shrink: 0;
         }
         .song-header-center h4 { font-size: 0.7rem; margin: 0; color: #888; }
 
+        /* ★修正: 曲リストも5pxに */
         .item-btn { 
-            width: 100%; background: transparent; padding: 10px 4px; border: none;
-            border-bottom: 1px solid #2a2a2a; 
+            width: 100%; background: transparent; 
+            padding: 5px 4px; /* スリム化 */
+            border: none; border-bottom: 1px solid #2a2a2a; 
             font-size: 12px; color: #ccc; cursor: pointer;
             display: flex; justify-content: flex-start; text-align: left;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
@@ -182,7 +187,7 @@
 </head>
 <body>
     <div class="header-area">
-        <div class="version-tag">Ver.1.5.9.30</div>
+        <div class="version-tag">Ver.1.5.9.31</div>
         <h1>G-Drive Music</h1>
         <div class="marquee-container">
             <div id="song-title" class="marquee-text">接続待機中...</div>
