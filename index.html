@@ -3,350 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Player Ver.1.5.9.9 (Auto-Skip Patch)</title>
+    <title>G-Drive Music Player Ver.1.5.9.9</title>
     <style>
-        body { background: #000; color: #0f0; font-family: monospace; text-align: center; margin: 0; padding: 20px; box-sizing: border-box; }
-        #canvas { width: 100%; height: 200px; background: #111; margin-top: 20px; border-bottom: 1px solid #333; }
-        .info-area { margin: 20px 0; min-height: 60px; }
-        #folder-name { color: #888; font-size: 0.9em; margin-bottom: 5px; }
-        #song-title { font-size: 1.2em; font-weight: bold; color: #fff; word-break: break-all; }
-        
-        .controls { display: flex; justify-content: center; gap: 20px; margin: 30px 0; }
-        button { 
-            padding: 15px 30px; 
-            font-size: 16px; 
-            cursor: pointer; 
-            background: #222; 
-            color: #fff; 
-            border: 1px solid #444; 
-            border-radius: 50px; 
-            touch-action: manipulation;
-        }
-        button:active { background: #444; }
-        .active { background: #0f0; color: #000; border: none; font-weight: bold; }
-        
-        #loading-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9);
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            z-index: 9999;
-        }
-        .hidden { display: none !important; }
+        /* スタイルは簡略化していますが、必要に応じて調整してください */
+        body { font-family: sans-serif; background: #121212; color: white; text-align: center; padding: 20px; }
+        .controls { margin-top: 30px; display: flex; justify-content: center; gap: 20px; }
+        button { padding: 15px 25px; font-size: 18px; cursor: pointer; border-radius: 50px; border: none; }
+        .active { background-color: #1DB954; color: white; }
+        #song-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
+        #folder-name { font-size: 14px; color: #aaa; }
+        #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 1000; }
     </style>
 </head>
 <body>
 
-    <div id="loading-overlay">
-        <div id="status-text">Google認証を待機中...</div>
-    </div>
-
-    <div class="info-area">
-        <div id="folder-name">---</div>
-        <div id="song-title">Ready</div>
-    </div>
+    <div id="loading-overlay">接続中...</div>
     
-    <canvas id="canvas"></canvas>
-
+    <div id="folder-name">---</div>
+    <div id="song-title">再生停止中</div>
+    
     <div class="controls">
         <button id="prevBtn">Prev</button>
         <button id="bigPlay" class="active">再生</button>
-        <button id="pauseBtn" class="hidden">一時停止</button>
+        <button id="pauseBtn" style="display:none;">一時停止</button>
         <button id="nextBtn">Next</button>
     </div>
 
-    <audio id="audioPlayer" crossorigin="anonymous"></audio>
+    <audio id="audioPlayer"></audio>
 
     <script>
-        // --- 設定と状態管理 ---
-        const CLIENT_ID = 'YOUR_CLIENT_ID'; // ★ここにクライアントIDを入れてください
-        const API_KEY = 'YOUR_API_KEY';     // ★ここにAPIキーを入れてください
-        const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
-        
-        let tokenClient;
+        // 設定と状態管理
         let accessToken = null;
-        let allFiles = [];      // APIから取得した生データ
-        let playQueue = [];     // 再生順序リスト
-        let currentIndex = 0;
-        let isExplicitPause = false; // ★自動スキップ判定用フラグ
-        let audioCtx, analyser, source, canvas, canvasCtx;
-        let isVisualizerInit = false;
-
+        let allTracks = []; // 全フォルダの曲リスト
+        let playQueue = []; // シャッフルされた再生キュー
+        let currentIndex = -1;
+        let lastUpdateTime = 0;
+        
         const audio = document.getElementById('audioPlayer');
         const bigPlay = document.getElementById('bigPlay');
         const pauseBtn = document.getElementById('pauseBtn');
-        const statusText = document.getElementById('status-text');
 
-        // --- 1. Google認証と初期化 (1時間の壁対策) ---
+        // 1. 初期化と認証管理 (Ver.1.5.9.4: 1時間の壁対策)
         function gisLoaded() {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: async (resp) => {
-                    if (resp.error) throw resp;
-                    accessToken = resp.access_token;
-                    statusText.innerText = "ファイルリスト取得中...";
-                    await fetchFiles();
-                },
-            });
-            // 初回認証
-            tokenClient.requestAccessToken({prompt: ''});
-
-            // 50分ごとにトークンを裏でリフレッシュ
-            setInterval(() => {
-                console.log("Token refreshing...");
-                tokenClient.requestAccessToken({prompt: ''});
-            }, 50 * 60 * 1000);
-        }
-
-        function gapiLoaded() {
-            gapi.load('client', () => {
-                gapi.client.init({ apiKey: API_KEY, discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'] });
-            });
-        }
-
-        // --- 2. ファイル取得とシャッフル (フォルダ跨ぎ) ---
-        async function fetchFiles() {
-            try {
-                // 音声ファイルのみ検索
-                let response = await gapi.client.drive.files.list({
-                    pageSize: 1000,
-                    fields: 'files(id, name, parents, mimeType)',
-                    q: "mimeType contains 'audio/' and trashed = false"
-                });
-                
-                const files = response.result.files;
-                if (!files || files.length === 0) {
-                    statusText.innerText = "音声ファイルが見つかりません";
-                    return;
+            const client = google.accounts.oauth2.initTokenClient({
+                client_id: 'YOUR_CLIENT_ID', // 設定済みのID
+                scope: 'https://www.googleapis.com/auth/drive.readonly',
+                callback: (response) => {
+                    accessToken = response.access_token;
+                    startApp();
                 }
+            });
+            // 50分ごとにトークンをサイレント更新
+            setInterval(() => client.requestAccessToken({prompt: ''}), 50 * 60 * 1000);
+            client.requestAccessToken({prompt: ''});
+        }
 
-                // フォルダごとに分類
-                const folders = {};
-                files.forEach(f => {
-                    const pid = f.parents ? f.parents[0] : 'root';
-                    if (!folders[pid]) folders[pid] = [];
-                    folders[pid].push(f);
-                });
-
-                // フォルダ跨ぎシャッフル生成
-                playQueue = createSmartShuffle(folders);
-                statusText.innerText = `準備完了 (${playQueue.length}曲)`;
-                setTimeout(() => {
-                    document.getElementById('loading-overlay').classList.add('hidden');
-                }, 1000);
-
-            } catch (err) {
-                statusText.innerText = "エラー: " + JSON.stringify(err);
+        // 2. メディアセッションの初期化 (Ver.1.5.9.0: 重複登録防止)
+        function initMediaSession() {
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.setActionHandler('play', () => audio.play());
+                navigator.mediaSession.setActionHandler('pause', () => audio.pause());
+                navigator.mediaSession.setActionHandler('previoustrack', () => handlePrev());
+                navigator.mediaSession.setActionHandler('nexttrack', () => handleNext());
             }
         }
 
-        function createSmartShuffle(foldersObj) {
-            let folderKeys = Object.keys(foldersObj);
-            // フォルダの順番自体をシャッフル
-            folderKeys.sort(() => Math.random() - 0.5);
+        // 3. フォルダ跨ぎシャッフルロジック (Ver.1.5.9.7)
+        function createSmartShuffle(filesByFolder) {
+            let folders = Object.keys(filesByFolder);
+            // フォルダ順をシャッフル
+            folders.sort(() => Math.random() - 0.5);
             
-            // 各フォルダの中身もシャッフル
-            folderKeys.forEach(k => foldersObj[k].sort(() => Math.random() - 0.5));
-
             let queue = [];
-            let maxLen = Math.max(...folderKeys.map(k => foldersObj[k].length));
+            let maxFiles = Math.max(...folders.map(f => filesByFolder[f].length));
 
-            // 各フォルダから1つずつ取り出す
-            for (let i = 0; i < maxLen; i++) {
-                folderKeys.forEach(key => {
-                    if (foldersObj[key][i]) {
-                        // フォルダ名(ID)をメタデータとして付与
-                        foldersObj[key][i].folderId = key; 
-                        queue.push(foldersObj[key][i]);
+            for (let i = 0; i < maxFiles; i++) {
+                folders.forEach(folder => {
+                    if (filesByFolder[folder][i]) {
+                        queue.push(filesByFolder[folder][i]);
                     }
                 });
             }
-            return queue;
+            return queue; // 各フォルダから1曲ずつ取り出したリスト
         }
 
-        // --- 3. 再生処理 (Blob使用・ビジュアライザー連携) ---
+        // 4. 再生処理 (Ver.1.5.9.1 & 1.5.9.6)
         async function playTrack(index) {
-            if (index >= playQueue.length) index = 0;
-            if (index < 0) index = playQueue.length - 1;
+            if (index < 0 || index >= playQueue.length) return;
             currentIndex = index;
-
             const track = playQueue[index];
-            isExplicitPause = false; // フラグ初期化
 
-            // UI更新
             document.getElementById('song-title').innerText = track.name;
-            document.getElementById('folder-name').innerText = `Folder: ${track.folderId.slice(-6)}...`; // 簡易表示
-            updateButtonState('playing');
+            document.getElementById('folder-name').innerText = track.folderName;
 
-            // Blobとして取得（再生安定化のため）
-            try {
-                if (audio.src) URL.revokeObjectURL(audio.src); // メモリ解放
+            const url = `https://www.googleapis.com/drive/v3/files/${track.id}?alt=media`;
+            
+            // 旧リソースの解放 (メモリリーク対策)
+            if (audio.src) URL.revokeObjectURL(audio.src);
 
-                const res = await fetch(`https://www.googleapis.com/drive/v3/files/${track.id}?alt=media`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                
-                if (!res.ok) throw new Error('Network response was not ok');
-                
-                const blob = await res.blob();
-                audio.src = URL.createObjectURL(blob);
-                
-                // ビジュアライザー起動 (初回のみ)
-                if (!isVisualizerInit) initVisualizer();
-                if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-
-                await audio.play();
-                setupMediaSession(track);
-
-            } catch (e) {
-                console.error("再生失敗:", e);
-                // 失敗したら次へ (救済)
-                setTimeout(() => handleNext(), 1000);
-            }
+            const response = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            const blob = await response.blob();
+            audio.src = URL.createObjectURL(blob);
+            
+            audio.play();
+            updateMediaMetadata(track);
         }
 
-        // --- 4. ビジュアライザー (AudioContext) ---
-        function initVisualizer() {
-            try {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                analyser = audioCtx.createAnalyser();
-                source = audioCtx.createMediaElementSource(audio);
-                source.connect(analyser);
-                analyser.connect(audioCtx.destination);
-                analyser.fftSize = 256;
-
-                canvas = document.getElementById('canvas');
-                canvasCtx = canvas.getContext('2d');
-                isVisualizerInit = true;
-                draw();
-            } catch (e) {
-                console.log("ビジュアライザー初期化エラー:", e);
+        // 5. インテリジェントな「戻る」 (Ver.1.5.9.6)
+        function handlePrev() {
+            if (audio.currentTime > 3) {
+                audio.currentTime = 0; // 3秒以上再生なら頭出し
+            } else {
+                playTrack(currentIndex - 1); // 3秒以内なら前の曲
             }
         }
-
-        function draw() {
-            if (!isVisualizerInit) return;
-            requestAnimationFrame(draw);
-
-            // 画面OFF等の負荷軽減用（オプション）
-            // if (document.hidden) return; 
-
-            const bufferLength = analyser.frequencyBinCount;
-            const dataArray = new Uint8Array(bufferLength);
-            analyser.getByteFrequencyData(dataArray);
-
-            canvasCtx.fillStyle = '#111';
-            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
-
-            const barWidth = (canvas.width / bufferLength) * 2.5;
-            let barHeight;
-            let x = 0;
-
-            for (let i = 0; i < bufferLength; i++) {
-                barHeight = dataArray[i] / 1.5;
-                // 色を緑基調のグラデーションに
-                canvasCtx.fillStyle = `rgb(0, ${barHeight + 100}, 50)`;
-                canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-                x += barWidth + 1;
-            }
-        }
-
-        // --- 5. 操作ハンドラと救済ロジック ---
 
         function handleNext() {
             playTrack(currentIndex + 1);
         }
 
-        function handlePrev() {
-            // インテリジェントな戻る (3秒ルール)
-            if (audio.currentTime > 3) {
-                audio.currentTime = 0;
-            } else {
-                playTrack(currentIndex - 1);
-            }
-        }
-
-        function togglePlay() {
-            if (audio.paused) {
-                isExplicitPause = false;
-                audio.play();
-                updateButtonState('playing');
-            } else {
-                isExplicitPause = true;
-                audio.pause();
-                updateButtonState('paused');
-            }
-        }
-
-        function updateButtonState(state) {
-            if (state === 'playing') {
-                bigPlay.classList.add('hidden');
-                pauseBtn.classList.remove('hidden');
-                pauseBtn.classList.add('active');
-            } else {
-                pauseBtn.classList.add('hidden');
-                bigPlay.classList.remove('hidden');
-                bigPlay.classList.add('active');
-            }
-        }
-
-        // ★★★ 自動スキップ救済ロジック (NEW) ★★★
-        audio.addEventListener('pause', () => {
-            // 正常終了の場合は 'ended' が呼ばれるのでここでは無視
-            // ただし、環境によっては ended 前に pause が呼ばれることもあるので判定
-            if (audio.currentTime >= audio.duration - 0.5) return;
-
-            // ユーザーがボタンを押した場合は無視
-            if (isExplicitPause) return;
-
-            console.warn("異常停止を検知 (救済発動): 次の曲へスキップします");
-            setTimeout(() => handleNext(), 1500); // 1.5秒後にスキップ
-        });
-
-        audio.addEventListener('ended', () => handleNext()); // 正常終了時
-
-        audio.addEventListener('error', (e) => {
-            console.error("オーディオエラー:", e);
-            setTimeout(() => handleNext(), 1500);
-        });
-
-        // ボタンイベント
-        bigPlay.addEventListener('click', togglePlay);
-        pauseBtn.addEventListener('click', togglePlay);
-        document.getElementById('nextBtn').addEventListener('click', handleNext);
-        document.getElementById('prevBtn').addEventListener('click', handlePrev);
-
-        // --- 6. MediaSession & OS通知連携 ---
-        function setupMediaSession(track) {
-            if ('mediaSession' in navigator) {
-                navigator.mediaSession.metadata = new MediaMetadata({
-                    title: track.name,
-                    artist: 'G-Drive Player',
-                    album: 'Ver.1.5.9.9'
-                });
-                
-                // ハンドラ登録（重複なし）
-                navigator.mediaSession.setActionHandler('play', () => {
-                    isExplicitPause = false;
-                    audio.play();
-                    updateButtonState('playing');
-                });
-                navigator.mediaSession.setActionHandler('pause', () => {
-                    isExplicitPause = true;
-                    audio.pause();
-                    updateButtonState('paused');
-                });
-                navigator.mediaSession.setActionHandler('previoustrack', handlePrev);
-                navigator.mediaSession.setActionHandler('nexttrack', handleNext);
-            }
-        }
-
-        // 通知ラグ対策（スロットリング）
-        let lastTimeUpdate = 0;
+        // 6. OSへの通知スロットリング (Ver.1.5.9.1)
         audio.ontimeupdate = () => {
             const now = Date.now();
-            if (now - lastTimeUpdate > 1000) {
+            if (now - lastUpdateTime > 1000) { // 1秒間隔に制限
                 if ('mediaSession' in navigator) {
                     navigator.mediaSession.setPositionState({
                         duration: audio.duration || 0,
@@ -354,12 +135,23 @@
                         position: audio.currentTime
                     });
                 }
-                lastTimeUpdate = now;
+                lastUpdateTime = now;
             }
         };
 
+        // 自動再生
+        audio.onended = () => handleNext();
+
+        // 初期化実行
+        window.onload = () => {
+            initMediaSession();
+        };
+
+        function startApp() {
+            // ここでGoogle Driveからファイル取得・フィルタリング・シャッフル等の初期化を実行
+            console.log("App Started with Access Token");
+            document.getElementById('loading-overlay').style.display = 'none';
+        }
     </script>
-    <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
-    <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
 </body>
 </html>
