@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>G-Drive Music Ver.1.5.9.24</title>
+    <title>G-Drive Music Ver.1.5.9.26</title>
     <style>
         * { box-sizing: border-box; }
 
@@ -30,10 +30,7 @@
             animation: marquee 15s linear infinite;
             font-weight: bold; color: #1DB954; font-size: 1.0rem;
         }
-        @keyframes marquee {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(-100%); }
-        }
+        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
 
         #auth-btn { background: #1DB954; color: white; font-weight: bold; border: 1px solid #fff; padding: 15px; width: 80%; margin: 50px auto; }
 
@@ -43,29 +40,48 @@
             width: 100%; max-width: 600px; margin: 0 auto; position: relative;
         }
 
-        /* リストエリア */
+        /* リストエリア (比率調整: 1.15 : 1.35) */
+        /* チェックボックス分だけ少し広げ、曲リストも十分確保 */
         .lists-wrapper {
-            flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1.5fr; gap: 5px;
+            flex: 1; min-height: 0; display: grid; grid-template-columns: 1.15fr 1.35fr; gap: 5px;
             padding: 5px; overflow: hidden;
         }
         .list-box { 
             background: #1e1e1e; border-radius: 4px; border: 1px solid #333; 
             display: flex; flex-direction: column; height: 100%; overflow: hidden;
         }
-        .list-box h4 { 
-            font-size: 0.7rem; margin: 0; padding: 6px; color: #888; 
-            background: #252525; border-bottom: 1px solid #333; text-align: center; flex-shrink: 0; 
+        /* ヘッダー (全選択チェックボックス入り) */
+        .list-header {
+            display: flex; align-items: center; justify-content: center; gap: 5px;
+            padding: 6px; background: #252525; border-bottom: 1px solid #333; flex-shrink: 0;
         }
+        .list-header h4 { font-size: 0.7rem; margin: 0; color: #888; }
+        .header-check { transform: scale(1.2); cursor: pointer; }
+
         .scroll-area { flex: 1; overflow-y: auto; }
         
+        /* フォルダリストアイテム */
+        .folder-item-row {
+            display: flex; align-items: center; border-bottom: 1px solid #2a2a2a;
+            padding: 0 4px; width: 100%;
+        }
+        .folder-check { transform: scale(1.3); margin-right: 8px; cursor: pointer; flex-shrink: 0; }
+        .folder-btn {
+            flex: 1; text-align: left; background: transparent; padding: 12px 0; border: none;
+            font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
+            cursor: pointer; color: #ccc;
+        }
+        .folder-btn.current-folder { color: #fff; font-weight: bold; }
+        .folder-item-row.active-row { border-left: 3px solid #1DB954; background: #222; }
+
+        /* 曲リストアイテム */
         .item-btn { 
             width: 100%; text-align: left; background: transparent; padding: 10px 4px; 
-            font-size: 12px; border-bottom: 1px solid #2a2a2a; 
+            font-size: 12px; border-bottom: 1px solid #2a2a2a; border-top:none; border-left:none; border-right:none;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: #ccc; 
         }
         .item-btn:active { background: #333; }
         .item-btn.playing { color: #1DB954; font-weight: bold; background: #222; }
-        .item-btn.current-folder { color: #fff; border-left: 3px solid #1DB954; }
 
         /* 操作パネル */
         .controls-wrapper {
@@ -106,12 +122,11 @@
         .menu-btn { flex: 1; background: #333; color: #ccc; font-size: 12px; border-radius: 4px; margin: 0 1px; height: 100%; }
         .menu-btn.active { background: #1DB954; color: #fff; font-weight: bold; }
 
-        /* ログ・設定オーバーレイ（修正箇所） */
+        /* ログ・設定オーバーレイ */
         #log-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.95); z-index: 3000;
-            display: flex; /* ★修正: ここをflexにして、初期状態で表示能力を持たせる */
-            flex-direction: column; padding: 20px;
+            display: flex; flex-direction: column; padding: 20px;
         }
         .settings-box {
             background: #222; padding: 15px; border-radius: 8px; border: 1px solid #444;
@@ -128,13 +143,12 @@
         }
         .log-actions { display: flex; gap: 10px; height: 50px; flex-shrink: 0; }
 
-        /* 非表示用クラス */
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
     <div class="header-area">
-        <div class="version-tag">Ver.1.5.9.24</div>
+        <div class="version-tag">Ver.1.5.9.26</div>
         <h1>G-Drive Music</h1>
         <div class="marquee-container">
             <div id="song-title" class="marquee-text">接続待機中...</div>
@@ -146,11 +160,14 @@
     <div id="main-container" class="hidden">
         <div class="lists-wrapper">
             <div class="list-box">
-                <h4>フォルダリスト</h4>
+                <div class="list-header">
+                    <input type="checkbox" id="check-all-folders" class="header-check" checked onclick="toggleAllFolders(this.checked)">
+                    <h4>フォルダリスト</h4>
+                </div>
                 <div id="folder-list" class="scroll-area"></div>
             </div>
             <div class="list-box">
-                <h4>曲リスト</h4>
+                <div class="list-header"><h4>曲リスト</h4></div>
                 <div id="song-list" class="scroll-area"></div>
             </div>
         </div>
@@ -198,18 +215,16 @@
 
     <div id="log-overlay" class="hidden">
         <h3 style="color:#0f0; margin:0 0 10px 0;">Settings & Logs</h3>
-        
         <div class="settings-box">
             <div class="settings-row">
-                <span>送り秒数 (Forward)</span>
+                <span>送り秒数 (Fwd)</span>
                 <select id="setting-fwd" onchange="updateSkipSettings()"></select>
             </div>
             <div class="settings-row">
-                <span>戻り秒数 (Backward)</span>
+                <span>戻り秒数 (Back)</span>
                 <select id="setting-back" onchange="updateSkipSettings()"></select>
             </div>
         </div>
-
         <div id="log-content">ログはありません</div>
         <div class="log-actions">
             <button onclick="copyLog()">コピー</button>
@@ -230,10 +245,8 @@
         let isShuffle = false, repeatMode = 0, playScope = 'folder'; 
         let sleepTimeout = null, sleepInterval = null;
         let currentFolderId = null, currentFolderName = "";
-        
-        // スキップ設定
-        let skipFwdVal = 10;
-        let skipBackVal = 10;
+        let skipFwdVal = 10, skipBackVal = 10;
+        let selectedFolderIds = []; 
 
         let isRetry = false, lastPositionUpdate = 0;
         let shuffleIndices = [], shuffleIndex = 0;
@@ -244,18 +257,13 @@
 
         const audio = document.getElementById('audio-player');
         const volumeSlider = document.getElementById('volume-slider');
-        const ARTWORK_DATA = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAVklEQVRo3u3RAREAMAwDkZm/6RqmEA0fLgW1790dPCZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGibgAS76A/1z768hAAAAAElFTkSuQmCC';
+        const ARTWORK_DATA = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAVklEQVRo3u3RAREAMAwDkZm/6RqmEA0fLgW1790dPCZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGibgAS76A/1z768hAAAAAElFTkSuQmCC';
 
         volumeSlider.addEventListener('input', (e) => { audio.volume = e.target.value; saveSettings(); });
 
-        // 設定用プルダウンの生成 (1~30秒)
         function initSkipSettings() {
-            const fwdSelect = document.getElementById('setting-fwd');
-            const backSelect = document.getElementById('setting-back');
-            for(let i=1; i<=30; i++) {
-                fwdSelect.add(new Option(i + "秒", i));
-                backSelect.add(new Option(i + "秒", i));
-            }
+            const f = document.getElementById('setting-fwd'), b = document.getElementById('setting-back');
+            for(let i=1; i<=30; i++) { f.add(new Option(i+"秒",i)); b.add(new Option(i+"秒",i)); }
         }
         initSkipSettings();
 
@@ -269,52 +277,34 @@
 
         function addLog(msg) {
             const time = new Date().toLocaleTimeString('ja-JP', {hour12: false});
-            appLogs.push(`[${time}] ${msg}`);
-            console.log(`[${time}] ${msg}`);
-            const area = document.getElementById('log-content');
-            area.innerText = appLogs.join('\n');
-            area.scrollTop = area.scrollHeight;
+            appLogs.push(`[${time}] ${msg}`); console.log(`[${time}] ${msg}`);
+            const area = document.getElementById('log-content'); area.innerText = appLogs.join('\n'); area.scrollTop = area.scrollHeight;
         }
-        
         function toggleLog() { 
-            const el = document.getElementById('log-overlay');
-            el.classList.toggle('hidden');
-            if (!el.classList.contains('hidden')) {
-                 const area = document.getElementById('log-content');
-                 area.scrollTop = area.scrollHeight;
-            }
+            const el = document.getElementById('log-overlay'); el.classList.toggle('hidden');
+            if(!el.classList.contains('hidden')) document.getElementById('log-content').scrollTop = document.getElementById('log-content').scrollHeight;
         }
-        function copyLog() {
-            navigator.clipboard.writeText(appLogs.join('\n')).then(() => alert("コピーしました")).catch(e => alert("失敗: " + e));
-        }
-
-        // --- 設定反映 ---
+        function copyLog() { navigator.clipboard.writeText(appLogs.join('\n')).then(()=>alert("Copied")).catch(e=>alert("Fail:"+e)); }
         function updateSkipSettings() {
             skipFwdVal = parseInt(document.getElementById('setting-fwd').value);
             skipBackVal = parseInt(document.getElementById('setting-back').value);
-            
             document.getElementById('btn-skip-fwd').innerText = `+${skipFwdVal}秒`;
             document.getElementById('btn-skip-back').innerText = `-${skipBackVal}秒`;
-            
             saveSettings();
         }
-
         function skipFwd() { skip(skipFwdVal); }
         function skipBack() { skip(-skipBackVal); }
 
-        // --- Auth ---
         function gapiLoaded() { gapi.load('client', () => {}); }
         function gisLoaded() {
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID, scope: SCOPES,
                 callback: (resp) => {
-                    if (resp.error) { document.getElementById('auth-btn').classList.remove('hidden'); addLog("Auth Err: " + JSON.stringify(resp)); return; }
-                    accessToken = resp.access_token;
-                    tokenExpiry = Date.now() + 3500 * 1000;
+                    if (resp.error) { document.getElementById('auth-btn').classList.remove('hidden'); addLog("Auth Err: "+JSON.stringify(resp)); return; }
+                    accessToken = resp.access_token; tokenExpiry = Date.now() + 3500 * 1000;
                     document.getElementById('auth-btn').classList.add('hidden');
                     document.getElementById('main-container').classList.remove('hidden');
-                    addLog("Auth Success");
-                    fetchUserEmail();
+                    addLog("Auth Success"); fetchUserEmail();
                     if (isRetry) { isRetry = false; if(playlist.length > 0) playTrack(currentIndex); else initApp(); }
                     else initApp();
                 },
@@ -337,20 +327,19 @@
             tokenClient.requestAccessToken(config);
         }
 
-        // --- Init ---
         async function initApp() {
             const saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
             if (saved.isShuffle !== undefined) isShuffle = saved.isShuffle;
             if (saved.repeatMode !== undefined) { repeatMode = saved.repeatMode - 1; toggleRepeat(); }
             if (saved.playScope !== undefined) changeScope(saved.playScope);
             if (saved.volume !== undefined) { volumeSlider.value = saved.volume; audio.volume = saved.volume; }
-            
-            // スキップ設定の復元
             if (saved.skipFwdVal) skipFwdVal = saved.skipFwdVal;
             if (saved.skipBackVal) skipBackVal = saved.skipBackVal;
+            if (saved.selectedFolderIds) selectedFolderIds = saved.selectedFolderIds;
+
             document.getElementById('setting-fwd').value = skipFwdVal;
             document.getElementById('setting-back').value = skipBackVal;
-            updateSkipSettings(); // ボタン表示更新
+            updateSkipSettings();
 
             changeMode(isShuffle ? 'shuffle' : 'normal');
             setupMediaSessionHandlers();
@@ -393,8 +382,8 @@
             const settings = { 
                 folderId: currentFolderId, folderName: currentFolderName, 
                 isShuffle: isShuffle, repeatMode: repeatMode, playScope: playScope, 
-                volume: volumeSlider.value,
-                skipFwdVal: skipFwdVal, skipBackVal: skipBackVal 
+                volume: volumeSlider.value, skipFwdVal: skipFwdVal, skipBackVal: skipBackVal,
+                selectedFolderIds: selectedFolderIds
             };
             localStorage.setItem(STORE_KEY, JSON.stringify(settings));
         }
@@ -404,13 +393,37 @@
             for (let i = shuffleIndices.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffleIndices[i], shuffleIndices[j]] = [shuffleIndices[j], shuffleIndices[i]]; }
             shuffleIndex = 0;
         }
+        
         function generateFolderShuffleIndices() {
-            folderShuffleIndices = Array.from({length: allFolders.length}, (_, i) => i);
-            for (let i = folderShuffleIndices.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [folderShuffleIndices[i], folderShuffleIndices[j]] = [folderShuffleIndices[j], folderShuffleIndices[i]]; }
+            let validIndices = [];
+            allFolders.forEach((f, i) => {
+                if (selectedFolderIds.length === 0 || selectedFolderIds.includes(f.id)) validIndices.push(i);
+            });
+            folderShuffleIndices = validIndices;
+            for (let i = folderShuffleIndices.length - 1; i > 0; i--) { 
+                const j = Math.floor(Math.random() * (i + 1)); 
+                [folderShuffleIndices[i], folderShuffleIndices[j]] = [folderShuffleIndices[j], folderShuffleIndices[i]]; 
+            }
             currentFolderShuffleIndex = 0;
         }
+
         function formatTrackName(name) { return name.replace(/\.[^/.]+$/, ""); }
         function getDisplayTitle(folderName, fileName) { return `[${folderName}] ${formatTrackName(fileName)}`; }
+
+        function toggleFolder(id, checked) {
+            if (checked) { if (!selectedFolderIds.includes(id)) selectedFolderIds.push(id); }
+            else { selectedFolderIds = selectedFolderIds.filter(fid => fid !== id); }
+            document.getElementById('check-all-folders').checked = (selectedFolderIds.length === allFolders.length);
+            saveSettings(); generateFolderShuffleIndices();
+        }
+
+        function toggleAllFolders(checked) {
+            const checkboxes = document.querySelectorAll('.folder-check');
+            checkboxes.forEach(cb => cb.checked = checked);
+            if (checked) selectedFolderIds = allFolders.map(f => f.id);
+            else selectedFolderIds = [];
+            saveSettings(); generateFolderShuffleIndices();
+        }
 
         async function loadFolders() {
             try {
@@ -420,14 +433,28 @@
                 if(resp.status === 401) { refreshAccessToken(); return; }
                 const data = await resp.json();
                 allFolders = data.files.sort((a,b)=>a.name.localeCompare(b.name,'ja'));
+                
+                if (selectedFolderIds.length === 0 && !localStorage.getItem(STORE_KEY)) selectedFolderIds = allFolders.map(f => f.id);
+
                 generateFolderShuffleIndices(); 
+                
                 const listEl = document.getElementById('folder-list'); listEl.innerHTML = '';
                 allFolders.forEach(f => {
-                    const btn = document.createElement('div'); btn.className = 'item-btn';
+                    const row = document.createElement('div'); row.className = 'folder-item-row';
+                    if(f.id === currentFolderId) row.classList.add('active-row');
+                    
+                    const check = document.createElement('input');
+                    check.type = 'checkbox'; check.className = 'folder-check';
+                    check.checked = selectedFolderIds.includes(f.id);
+                    check.onclick = (e) => { e.stopPropagation(); toggleFolder(f.id, check.checked); };
+                    
+                    const btn = document.createElement('button'); btn.className = 'folder-btn';
                     if(f.id === currentFolderId) btn.classList.add('current-folder');
-                    btn.id = `folder-${f.id}`; btn.innerText = "📁 " + f.name;
-                    btn.onclick = () => loadSongs(f.id, f.name, true); listEl.appendChild(btn);
+                    btn.innerText = f.name; btn.onclick = () => loadSongs(f.id, f.name, true);
+                    
+                    row.appendChild(check); row.appendChild(btn); listEl.appendChild(row);
                 });
+                document.getElementById('check-all-folders').checked = (selectedFolderIds.length === allFolders.length);
                 addLog(`Folders: ${allFolders.length}`);
             } catch(e) { addLog("Folder Err: " + e.message); }
         }
@@ -437,12 +464,18 @@
             
             const titleEl = document.getElementById('song-title');
             titleEl.innerText = `${folderName} 読込中...`;
-            titleEl.style.animation = 'none'; 
-            void titleEl.offsetWidth; 
-            titleEl.style.animation = 'marquee 15s linear infinite';
+            titleEl.style.animation = 'none'; void titleEl.offsetWidth; titleEl.style.animation = 'marquee 15s linear infinite';
 
-            document.querySelectorAll('#folder-list .item-btn').forEach(b => b.classList.remove('current-folder'));
-            document.getElementById(`folder-${folderId}`)?.classList.add('current-folder');
+            document.querySelectorAll('.folder-item-row').forEach(r => r.classList.remove('active-row'));
+            document.querySelectorAll('.folder-btn').forEach(b => b.classList.remove('current-folder'));
+            
+            const rows = document.querySelectorAll('.folder-item-row');
+             allFolders.forEach((f, idx) => {
+                 if (f.id === folderId && rows[idx]) {
+                     rows[idx].classList.add('active-row');
+                     rows[idx].querySelector('.folder-btn').classList.add('current-folder');
+                 }
+             });
 
             try {
                 let files = [];
@@ -504,10 +537,7 @@
             const displayTitle = getDisplayTitle(currentFolderName, track.name);
             const titleEl = document.getElementById('song-title');
             titleEl.innerText = displayTitle + " (読込中)";
-            
-            titleEl.style.animation = 'none';
-            void titleEl.offsetWidth;
-            titleEl.style.animation = 'marquee 15s linear infinite';
+            titleEl.style.animation = 'none'; void titleEl.offsetWidth; titleEl.style.animation = 'marquee 15s linear infinite';
 
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.metadata = new MediaMetadata({ title: formatTrackName(track.name), artist: currentFolderName, album: 'G-Drive', artwork: [{ src: ARTWORK_DATA, sizes: '64x64', type: 'image/png' }] });
@@ -545,13 +575,24 @@
             if (playScope === 'all' && isShuffle) {
                 currentFolderShuffleIndex++;
                 if (currentFolderShuffleIndex >= folderShuffleIndices.length) { generateFolderShuffleIndices(); currentFolderShuffleIndex = 0; }
+                if (folderShuffleIndices.length === 0) { alert("再生対象のフォルダがありません"); return; }
                 const nextFolder = allFolders[folderShuffleIndices[currentFolderShuffleIndex]];
                 loadSongs(nextFolder.id, nextFolder.name, true, true); return;
             }
             if (isShuffle) {
                 shuffleIndex++;
                 if (shuffleIndex >= shuffleIndices.length) {
-                    if (playScope === 'all') { const nextIdx = (allFolders.findIndex(f => f.id === currentFolderId) + 1) % allFolders.length; loadSongs(allFolders[nextIdx].id, allFolders[nextIdx].name, true); return; }
+                    if (playScope === 'all') { 
+                        const currentIdx = allFolders.findIndex(f => f.id === currentFolderId);
+                        let nextIdx = -1;
+                        for(let i=1; i<allFolders.length; i++) {
+                            const checkIdx = (currentIdx + i) % allFolders.length;
+                            if (selectedFolderIds.includes(allFolders[checkIdx].id)) { nextIdx = checkIdx; break; }
+                        }
+                        if (nextIdx !== -1) loadSongs(allFolders[nextIdx].id, allFolders[nextIdx].name, true);
+                        else audio.pause(); 
+                        return;
+                    }
                     else if (repeatMode === 1) { generateShuffleIndices(); shuffleIndex = 0; }
                     else { audio.pause(); return; }
                 }
@@ -560,7 +601,17 @@
                 let next = currentIndex + 1;
                 if (next >= playlist.length) {
                     if (repeatMode === 1) next = 0; 
-                    else if (playScope === 'all') { const nextIdx = (allFolders.findIndex(f => f.id === currentFolderId) + 1) % allFolders.length; loadSongs(allFolders[nextIdx].id, allFolders[nextIdx].name, true); return; }
+                    else if (playScope === 'all') { 
+                        const currentIdx = allFolders.findIndex(f => f.id === currentFolderId);
+                        let nextIdx = -1;
+                        for(let i=1; i<allFolders.length; i++) {
+                            const checkIdx = (currentIdx + i) % allFolders.length;
+                            if (selectedFolderIds.includes(allFolders[checkIdx].id)) { nextIdx = checkIdx; break; }
+                        }
+                        if (nextIdx !== -1) loadSongs(allFolders[nextIdx].id, allFolders[nextIdx].name, true);
+                        else audio.pause();
+                        return;
+                    }
                     else { audio.pause(); return; }
                 }
                 playTrack(next);
