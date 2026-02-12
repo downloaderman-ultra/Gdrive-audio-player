@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>G-Drive Music Ver.1.5.9.31</title>
+    <title>G-Drive Music Ver.1.5.9.32</title>
     <style>
         * { box-sizing: border-box; }
 
@@ -16,10 +16,10 @@
         /* チェックボックス */
         input[type="checkbox"] {
             appearance: none; -webkit-appearance: none;
-            width: 16px; height: 16px;
+            width: 14px; height: 14px; /* 少し小さく */
             background-color: #121212; 
             border: 1px solid #888;
-            border-radius: 3px;
+            border-radius: 2px;
             cursor: pointer;
             position: relative;
             display: flex; align-items: center; justify-content: center;
@@ -30,27 +30,27 @@
             background-color: #1DB954; border-color: #1DB954;
         }
         input[type="checkbox"]:checked::after {
-            content: ''; width: 4px; height: 8px;
+            content: ''; width: 3px; height: 6px; /* 中身も小さく */
             border: solid black; border-width: 0 2px 2px 0;
             transform: rotate(45deg); margin-bottom: 2px;
         }
 
         /* ヘッダー */
         .header-area { 
-            flex: 0 0 auto; padding: 10px; background: #181818; border-bottom: 1px solid #333; 
-            z-index: 10; height: 70px; display: flex; flex-direction: column; justify-content: center;
+            flex: 0 0 auto; padding: 8px; background: #181818; border-bottom: 1px solid #333; 
+            z-index: 10; height: 60px; display: flex; flex-direction: column; justify-content: center;
         }
-        .version-tag { position: absolute; top: 10px; right: 10px; font-size: 0.7rem; color: #666; }
-        h1 { font-size: 1.1rem; margin: 0; color: #aaa; line-height: 1.2; }
+        .version-tag { position: absolute; top: 5px; right: 5px; font-size: 0.6rem; color: #666; }
+        h1 { font-size: 1.0rem; margin: 0; color: #aaa; line-height: 1.1; }
         
         .marquee-container {
             width: 100%; overflow: hidden; white-space: nowrap; position: relative;
-            margin-top: 5px; height: 1.4em;
+            margin-top: 4px; height: 1.2em;
         }
         .marquee-text {
             display: inline-block; padding-left: 100%;
             animation: marquee 15s linear infinite;
-            font-weight: bold; color: #1DB954; font-size: 1.0rem;
+            font-weight: bold; color: #1DB954; font-size: 0.95rem;
         }
         @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
 
@@ -62,10 +62,10 @@
             width: 100%; max-width: 600px; margin: 0 auto; position: relative;
         }
 
-        /* リストエリア */
+        /* リストエリア (1.15 : 1.35) */
         .lists-wrapper {
-            flex: 1; min-height: 0; display: grid; grid-template-columns: 1.15fr 1.35fr; gap: 5px;
-            padding: 5px; overflow: hidden;
+            flex: 1; min-height: 0; display: grid; grid-template-columns: 1.15fr 1.35fr; gap: 4px;
+            padding: 4px; overflow: hidden;
         }
         .list-box { 
             background: #1e1e1e; border-radius: 4px; border: 1px solid #333; 
@@ -75,30 +75,29 @@
         /* リストヘッダー */
         .list-header {
             position: relative; display: flex; align-items: center; justify-content: center;
-            padding: 4px; /* ここも少し詰める */
-            background: #252525; border-bottom: 1px solid #333; flex-shrink: 0;
+            padding: 4px; background: #252525; border-bottom: 1px solid #333; flex-shrink: 0;
+            height: 28px; /* 高さ固定 */
         }
-        #check-all-folders { position: absolute; left: 6px; }
+        #check-all-folders { position: absolute; left: 4px; }
         .list-header h4 { font-size: 0.7rem; margin: 0; color: #888; }
         
         .scroll-area { flex: 1; overflow-y: auto; }
         
-        /* フォルダリスト行 */
+        /* フォルダリスト行 (高さ強制圧縮) */
         .folder-item-row {
             display: flex; align-items: center; border-bottom: 1px solid #2a2a2a;
-            padding: 0 6px; width: 100%;
-            /* 行の高さ自体を少し制限して詰める効果を狙う */
-            min-height: 30px; 
+            padding: 0 4px; width: 100%;
+            height: 28px; /* ★高さを強制指定 */
         }
-        .folder-check { margin-right: 8px; }
-        .folder-icon { font-size: 14px; margin-right: 2px; color: #ccc; flex-shrink: 0; }
+        .folder-check { margin-right: 6px; }
+        .folder-icon { font-size: 13px; margin-right: 2px; color: #ccc; flex-shrink: 0; }
         
-        /* ★修正: パディングを5pxまで削減 */
         .folder-btn {
             flex: 1; background: transparent; border: none; 
-            padding: 5px 0; /* かなりスリム化 */
-            font-size: 12px; color: #ccc; cursor: pointer;
-            display: flex; justify-content: flex-start; text-align: left;
+            padding: 0; margin: 0; /* 余白完全削除 */
+            font-size: 12px; line-height: 28px; /* 行の高さに合わせる */
+            color: #ccc; cursor: pointer;
+            display: block; text-align: left;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
         }
         .folder-btn.current-folder { color: #fff; font-weight: bold; }
@@ -108,16 +107,18 @@
         .song-header-center {
             display: flex; align-items: center; justify-content: center;
             padding: 4px; background: #252525; border-bottom: 1px solid #333; flex-shrink: 0;
+            height: 28px;
         }
         .song-header-center h4 { font-size: 0.7rem; margin: 0; color: #888; }
 
-        /* ★修正: 曲リストも5pxに */
+        /* 曲リストアイテム (高さ強制圧縮) */
         .item-btn { 
             width: 100%; background: transparent; 
-            padding: 5px 4px; /* スリム化 */
+            padding: 0 4px; margin: 0;
+            height: 28px; line-height: 28px; /* 高さ固定 */
             border: none; border-bottom: 1px solid #2a2a2a; 
             font-size: 12px; color: #ccc; cursor: pointer;
-            display: flex; justify-content: flex-start; text-align: left;
+            display: block; text-align: left;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
         }
         .item-btn:active { background: #333; }
@@ -125,37 +126,37 @@
 
         /* 操作パネル */
         .controls-wrapper {
-            flex: 0 0 auto; padding: 8px 10px; background: #121212; border-top: 1px solid #222;
+            flex: 0 0 auto; padding: 6px 8px; background: #121212; border-top: 1px solid #222;
         }
-        #visualizer-container { width: 100%; height: 60px; background: #000; margin-bottom: 8px; border-radius: 6px; border: 1px solid #333; }
+        #visualizer-container { width: 100%; height: 50px; background: #000; margin-bottom: 6px; border-radius: 6px; border: 1px solid #333; }
         #visualizer { width: 100%; height: 100%; display: block; }
         
         .volume-controls { 
             display: flex; align-items: center; gap: 8px; background: #222; padding: 0 10px; border-radius: 6px; 
-            height: 40px; margin-bottom: 8px;
+            height: 36px; margin-bottom: 6px;
         }
         .volume-label { font-size: 0.7rem; color: #aaa; flex-shrink: 0; }
-        input[type=range] { width: 100%; cursor: pointer; accent-color: #1DB954; height: 24px; margin: 0; }
+        input[type=range] { width: 100%; cursor: pointer; accent-color: #1DB954; height: 20px; margin: 0; }
 
-        .timer-info { font-size: 0.7rem; color: #666; height: 1rem; margin-bottom: 4px; }
+        .timer-info { font-size: 0.7rem; color: #666; height: 1rem; margin-bottom: 2px; }
 
-        .control-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
+        .control-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 6px; }
         
         button, select { 
             background: #333; color: white; border: none; padding: 0; border-radius: 6px; 
-            cursor: pointer; font-size: 13px; width: 100%; height: 48px; 
+            cursor: pointer; font-size: 12px; width: 100%; height: 42px; 
             display: flex; align-items: center; justify-content: center;
         }
         button:active { background: #555; }
         button.active { background: #1DB954; color: #fff; font-weight: bold; }
         select { text-align: center; text-align-last: center; appearance: none; border: 1px solid #444; }
 
-        .big-play-btn { width: 100%; background: #333; font-size: 1.2rem; font-weight: bold; height: 64px; margin-bottom: 0; border-radius: 8px; }
+        .big-play-btn { width: 100%; background: #333; font-size: 1.1rem; font-weight: bold; height: 50px; margin-bottom: 0; border-radius: 8px; }
         .big-play-btn.active { background: #1DB954; }
 
         /* 下部メニュー */
         .bottom-menu {
-            flex: 0 0 auto; height: 50px; width: 100%; background: #1a1a1a; 
+            flex: 0 0 auto; height: 45px; width: 100%; background: #1a1a1a; 
             border-top: 1px solid #333; display: flex; gap: 1px; padding: 2px;
         }
         .menu-btn { flex: 1; background: #333; color: #ccc; font-size: 12px; border-radius: 4px; margin: 0 1px; height: 100%; }
@@ -187,7 +188,7 @@
 </head>
 <body>
     <div class="header-area">
-        <div class="version-tag">Ver.1.5.9.31</div>
+        <div class="version-tag">Ver.1.5.9.32</div>
         <h1>G-Drive Music</h1>
         <div class="marquee-container">
             <div id="song-title" class="marquee-text">接続待機中...</div>
@@ -296,7 +297,7 @@
 
         const audio = document.getElementById('audio-player');
         const volumeSlider = document.getElementById('volume-slider');
-        const ARTWORK_DATA = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAVklEQVRo3u3RAREAMAwDkZm/6RqmEA0fLgW1790dPCZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGibgAS76A/1z768hAAAAAElFTkSuQmCC';
+        const ARTWORK_DATA = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAVklEQVRo3u3RAREAMAwDkZm/6RqmEA0fLgW1790dPCZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGiZgAibgGibgAS76A/1z768hAAAAAElFTkSuQmCC';
 
         volumeSlider.addEventListener('input', (e) => { audio.volume = e.target.value; saveSettings(); });
 
