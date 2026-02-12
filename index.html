@@ -3,22 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>G-Drive Music Ver.1.5.9.20</title>
+    <title>G-Drive Music Ver.1.5.9.21</title>
     <style>
         * { box-sizing: border-box; }
 
         body { 
             font-family: sans-serif; background: #121212; color: white; 
             text-align: center; margin: 0; padding: 0; 
-            height: 100dvh; /* 画面の高さに完全一致させる */
+            height: 100dvh; /* 画面の高さに完全一致 */
             display: flex; flex-direction: column; 
             overflow: hidden;
         }
 
-        /* 1. ヘッダー (固定サイズ: 縮まない) */
+        /* 1. ヘッダー */
         .header-area { 
-            flex: 0 0 auto; /* 伸縮禁止 */
-            padding: 5px 10px; background: #181818; border-bottom: 1px solid #333; 
+            flex: 0 0 auto; padding: 5px 10px; background: #181818; border-bottom: 1px solid #333; 
             z-index: 10;
         }
         .version-tag { position: absolute; top: 8px; right: 10px; font-size: 0.7rem; color: #666; }
@@ -31,18 +30,18 @@
         /* 認証ボタン */
         #auth-btn { background: #1DB954; color: white; font-weight: bold; border: 1px solid #fff; padding: 15px; width: 80%; margin: 50px auto; }
 
-        /* 2. メインコンテナ (リストのみ伸縮・操作盤は固定) */
+        /* 2. メインコンテナ */
         #main-container {
             flex: 1; /* 残りの高さを埋める */
             display: flex; flex-direction: column;
-            min-height: 0; /* 重要: これがないと中身が溢れる */
+            min-height: 0; 
             width: 100%; max-width: 600px; margin: 0 auto;
             position: relative;
         }
 
-        /* 2-A. リストエリア (ここだけが伸び縮みする) */
+        /* 2-A. リストエリア (自動的に狭くなる) */
         .lists-wrapper {
-            flex: 1; /* 余ったスペースを全て使う */
+            flex: 1; /* 余ったスペースを使う */
             min-height: 0; /* 潰れてもOK */
             display: grid; grid-template-columns: 1fr 1.5fr; gap: 5px;
             padding: 5px;
@@ -60,7 +59,7 @@
         .scroll-area { flex: 1; overflow-y: auto; }
         
         .item-btn { 
-            width: 100%; text-align: left; background: transparent; padding: 8px 4px; 
+            width: 100%; text-align: left; background: transparent; padding: 10px 4px; 
             font-size: 12px; border-bottom: 1px solid #2a2a2a; 
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: #ccc; 
         }
@@ -68,65 +67,58 @@
         .item-btn.playing { color: #1DB954; font-weight: bold; background: #222; }
         .item-btn.current-folder { color: #fff; border-left: 3px solid #1DB954; }
 
-        /* 2-B. 操作パネル (固定サイズ: 絶対に縮まない) */
+        /* 2-B. 操作パネル (固定サイズ・拡大版) */
         .controls-wrapper {
             flex: 0 0 auto; /* 伸縮禁止 */
-            padding: 5px 10px;
+            padding: 8px 10px;
             background: #121212;
             border-top: 1px solid #222;
         }
         
-        #visualizer-container { width: 100%; height: 25px; background: #000; margin-bottom: 5px; border-radius: 4px; }
+        /* ビジュアライザー (縦幅拡大) */
+        #visualizer-container { width: 100%; height: 60px; background: #000; margin-bottom: 8px; border-radius: 6px; border: 1px solid #333; }
         #visualizer { width: 100%; height: 100%; display: block; }
-        .timer-info { font-size: 0.7rem; color: #666; height: 1rem; margin-bottom: 2px; }
-
-        .control-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 5px; }
         
-        /* 共通ボタンスタイル */
+        /* 音量コントロール (移動済み) */
+        .volume-controls { 
+            display: flex; align-items: center; gap: 8px; 
+            background: #222; padding: 0 10px; border-radius: 6px; 
+            height: 40px; margin-bottom: 8px;
+        }
+        .volume-label { font-size: 0.7rem; color: #aaa; flex-shrink: 0; }
+        input[type=range] { width: 100%; cursor: pointer; accent-color: #1DB954; height: 24px; margin: 0; }
+
+        .timer-info { font-size: 0.7rem; color: #666; height: 1rem; margin-bottom: 4px; }
+
+        .control-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
+        
+        /* ボタン (厚みアップ) */
         button, select { 
-            background: #333; color: white; border: none; padding: 0; border-radius: 4px; 
-            cursor: pointer; font-size: 12px; width: 100%; height: 36px; /* 高さ固定 */
+            background: #333; color: white; border: none; padding: 0; border-radius: 6px; 
+            cursor: pointer; font-size: 13px; width: 100%; 
+            height: 48px; /* 厚みアップ */
             display: flex; align-items: center; justify-content: center;
         }
         button:active { background: #555; }
         button.active { background: #1DB954; color: #fff; font-weight: bold; }
         select { text-align: center; text-align-last: center; appearance: none; border: 1px solid #444; }
 
-        .big-play-btn { width: 100%; background: #333; font-size: 1.1rem; font-weight: bold; height: 44px; margin-bottom: 5px; border-radius: 6px; }
+        /* 再生ボタン (さらに厚く) */
+        .big-play-btn { width: 100%; background: #333; font-size: 1.2rem; font-weight: bold; height: 64px; margin-bottom: 0; border-radius: 8px; }
         .big-play-btn.active { background: #1DB954; }
 
-        .volume-controls { 
-            display: flex; align-items: center; gap: 8px; 
-            background: #222; padding: 0 10px; border-radius: 4px; 
-            height: 36px;
-        }
-        .volume-label { font-size: 0.7rem; color: #aaa; flex-shrink: 0; }
-        input[type=range] { width: 100%; cursor: pointer; accent-color: #1DB954; height: 20px; margin: 0; }
-
-        /* 3. 下部メニュー (固定サイズ) */
+        /* 3. 下部メニュー (固定) */
         .bottom-menu {
             flex: 0 0 auto; /* 伸縮禁止 */
             height: 50px; width: 100%; background: #1a1a1a; 
             border-top: 1px solid #333; 
-            display: flex; gap: 1px; /* ボタン間の区切り線用 */
-            padding: 2px;
+            display: flex; gap: 1px; padding: 2px;
         }
-        
-        /* 下部メニューボタンのデザインを統一 */
         .menu-btn {
-            flex: 1; 
-            background: #333; /* 他のボタンと同じ色 */
-            color: #ccc; 
-            font-size: 12px; 
-            border-radius: 4px;
-            margin: 0 1px;
-            height: 100%; /* 親の高さに合わせる */
+            flex: 1; background: #333; color: #ccc; font-size: 12px; 
+            border-radius: 4px; margin: 0 1px; height: 100%;
         }
-        .menu-btn.active {
-            background: #1DB954; /* 選択時は緑 */
-            color: #fff;
-            font-weight: bold;
-        }
+        .menu-btn.active { background: #1DB954; color: #fff; font-weight: bold; }
 
         /* ログオーバーレイ */
         #log-overlay {
@@ -139,14 +131,14 @@
             padding: 10px; overflow-y: scroll; text-align: left; font-size: 11px;
             white-space: pre-wrap; margin-bottom: 10px; font-family: monospace;
         }
-        .log-actions { display: flex; gap: 10px; height: 40px; flex-shrink: 0; }
+        .log-actions { display: flex; gap: 10px; height: 50px; flex-shrink: 0; }
 
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
     <div class="header-area">
-        <div class="version-tag">Ver.1.5.9.20</div>
+        <div class="version-tag">Ver.1.5.9.21</div>
         <h1>G-Drive Music</h1>
         <div id="song-title">接続待機中...</div>
     </div>
@@ -168,6 +160,12 @@
 
         <div class="controls-wrapper">
             <div id="visualizer-container"><canvas id="visualizer"></canvas></div>
+            
+            <div class="volume-controls">
+                <span class="volume-label">VOL</span>
+                <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1.0">
+            </div>
+
             <div id="timer-display" class="timer-info"></div>
 
             <div class="control-grid">
@@ -190,11 +188,6 @@
             </div>
             
             <button onclick="resumeOrPlay()" id="big-play-btn" class="big-play-btn">再生</button>
-            
-            <div class="volume-controls">
-                <span class="volume-label">VOL</span>
-                <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1.0">
-            </div>
         </div>
     </div>
 
@@ -247,12 +240,10 @@
             }
         }, 2000);
 
-        // --- Log ---
         function addLog(msg) {
             const time = new Date().toLocaleTimeString('ja-JP', {hour12: false});
-            const line = `[${time}] ${msg}`;
-            appLogs.push(line);
-            console.log(line);
+            appLogs.push(`[${time}] ${msg}`);
+            console.log(`[${time}] ${msg}`);
             const area = document.getElementById('log-content');
             area.innerText = appLogs.join('\n');
             area.scrollTop = area.scrollHeight;
@@ -262,7 +253,6 @@
             navigator.clipboard.writeText(appLogs.join('\n')).then(() => alert("コピーしました")).catch(e => alert("失敗: " + e));
         }
 
-        // --- Auth ---
         function gapiLoaded() { gapi.load('client', () => {}); }
         function gisLoaded() {
             tokenClient = google.accounts.oauth2.initTokenClient({
@@ -297,7 +287,6 @@
             tokenClient.requestAccessToken(config);
         }
 
-        // --- Init ---
         async function initApp() {
             const saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
             if (saved.isShuffle !== undefined) isShuffle = saved.isShuffle;
@@ -346,7 +335,6 @@
             localStorage.setItem(STORE_KEY, JSON.stringify({ folderId: currentFolderId, folderName: currentFolderName, isShuffle: isShuffle, repeatMode: repeatMode, playScope: playScope, volume: volumeSlider.value }));
         }
 
-        // --- Logic ---
         function generateShuffleIndices() {
             shuffleIndices = Array.from({length: playlist.length}, (_, i) => i);
             for (let i = shuffleIndices.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffleIndices[i], shuffleIndices[j]] = [shuffleIndices[j], shuffleIndices[i]]; }
@@ -528,7 +516,7 @@
             const mins = parseInt(document.getElementById('sleep-timer').value); clearTimeout(sleepTimeout); clearInterval(sleepInterval);
             const display = document.getElementById('timer-display');
             if (mins === 0) { display.innerText = ""; return; }
-            let endTime = Date.now() + mins * 60000; display.innerText = `タイマー: ${mins}分`;
+            let endTime = Date.now() + mins * 60000; display.innerText = `Timer: ${mins}分`;
             sleepInterval = setInterval(() => { let r = Math.round((endTime - Date.now()) / 60000); display.innerText = r > 0 ? `残り ${r}分` : "停止中"; }, 10000);
             sleepTimeout = setTimeout(() => { const f = setInterval(() => { if (audio.volume > 0.1) audio.volume -= 0.1; else { audio.pause(); clearInterval(f); clearInterval(sleepInterval); audio.volume = volumeSlider.value; display.innerText = "停止"; } }, 500); }, mins * 60000);
         }
