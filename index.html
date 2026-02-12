@@ -2,93 +2,102 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Music Ver.1.5.9.18</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>G-Drive Music Ver.1.5.9.19</title>
     <style>
-        /* --- 鉄壁の積み木レイアウト --- */
+        /* 全要素のサイズ計算を「枠線込み」にする（はみ出し防止の基本） */
+        * { box-sizing: border-box; }
+
         body { 
             font-family: sans-serif; background: #121212; color: white; 
             text-align: center; margin: 0; padding: 0; 
-            height: 100vh; /* 画面の高さ100% */
-            display: flex; flex-direction: column; /* 縦並び */
-            overflow: hidden; /* 画面全体はスクロールさせない */
+            /* 100dvh: スマホのアドレスバーを考慮した「本当の画面の高さ」 */
+            height: 100dvh; 
+            display: flex; flex-direction: column; 
+            overflow: hidden; /* 全体スクロール禁止 */
         }
 
         /* 1. ヘッダー (固定) */
-        .header-area { flex-shrink: 0; padding: 8px; background: #181818; border-bottom: 1px solid #333; z-index: 10; }
+        .header-area { 
+            flex-shrink: 0; padding: 8px; background: #181818; border-bottom: 1px solid #333; 
+            height: 50px; display: flex; flex-direction: column; justify-content: center;
+        }
         .version-tag { position: absolute; top: 10px; right: 10px; font-size: 0.7rem; color: #666; }
-        h1 { font-size: 1.0rem; margin: 0; color: #aaa; }
+        h1 { font-size: 0.9rem; margin: 0; color: #aaa; line-height: 1; }
         #song-title { 
-            margin: 5px 0 0 0; font-weight: bold; color: #1DB954; font-size: 0.9rem; 
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 1.2em;
+            margin: 2px 0 0 0; font-weight: bold; color: #1DB954; font-size: 0.9rem; 
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
-        /* 認証ボタン (通常隠れている) */
-        #auth-btn { background: #1DB954; color: white; font-weight: bold; border: 1px solid #fff; padding: 15px; width: 80%; margin: 50px auto; }
-
-        /* メインエリア (リスト + 操作盤) */
-        #main-ui {
+        /* 2. メインエリア (ここが伸縮する) */
+        #main-container {
             flex: 1; /* 残りの高さを全部使う */
             display: flex; flex-direction: column;
-            min-height: 0; /* 縮小限界を撤廃 */
-            width: 100%; max-width: 600px; margin: 0 auto; /* 横幅制限(PCで見やすく) */
+            min-height: 0; /* 潰れてもOKにする魔法 */
+            overflow: hidden;
+            width: 100%; max-width: 600px; margin: 0 auto;
         }
 
-        /* 2. リストエリア (ここだけ伸縮・スクロール) */
-        .content-container {
-            flex: 1; /* 余ったスペースを埋める */
-            min-height: 0; /* 潰れてもOK */
+        /* 2-A. リスト表示部 (ここがスクロール) */
+        .lists-wrapper {
+            flex: 1; /* 余ったスペースを全部埋める */
+            display: grid; grid-template-columns: 1fr 1.5fr; gap: 5px;
             padding: 5px;
-            display: grid; grid-template-columns: 1fr 1.4fr; gap: 5px;
+            min-height: 0; /* 重要 */
+            overflow: hidden;
         }
-
         .list-box { 
             background: #1e1e1e; border-radius: 4px; border: 1px solid #333; 
             display: flex; flex-direction: column; 
-            height: 100%; /* 親(content-container)の高さを埋める */
-            overflow: hidden; 
+            height: 100%; overflow: hidden;
         }
-        .list-box h4 { font-size: 0.7rem; margin: 0; padding: 4px; color: #888; background: #252525; border-bottom: 1px solid #333; text-align: center; flex-shrink: 0; }
-        .scroll-area { flex: 1; overflow-y: auto; /* 箱の中でスクロール */ }
+        .list-box h4 { 
+            font-size: 0.7rem; margin: 0; padding: 4px; color: #888; 
+            background: #252525; border-bottom: 1px solid #333; text-align: center; flex-shrink: 0; 
+        }
+        .scroll-area { flex: 1; overflow-y: auto; }
         
         .item-btn { 
             width: 100%; text-align: left; background: transparent; padding: 8px 4px; 
             font-size: 12px; border-bottom: 1px solid #2a2a2a; 
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: #ccc; 
         }
-        .item-btn:active { background: #333; }
         .item-btn.playing { color: #1DB954; font-weight: bold; background: #222; }
         .item-btn.current-folder { color: #fff; border-left: 3px solid #1DB954; }
 
-        /* 3. 操作エリア (固定・絶対に潰さない) */
-        .controls-area {
+        /* 2-B. 操作パネル (固定高さ・絶対に隠さない) */
+        .controls-wrapper {
             flex-shrink: 0; /* 縮小禁止 */
             padding: 5px 10px;
             background: #121212;
             border-top: 1px solid #222;
         }
-
-        #visualizer-container { width: 100%; height: 25px; background: #000; margin-bottom: 5px; border-radius: 4px; overflow: hidden; }
+        
+        #visualizer-container { width: 100%; height: 20px; background: #000; margin-bottom: 5px; border-radius: 4px; }
         #visualizer { width: 100%; height: 100%; display: block; }
         .timer-info { font-size: 0.7rem; color: #666; height: 1rem; margin-bottom: 2px; }
 
-        .control-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 6px; }
-        button, select { background: #333; color: white; border: none; padding: 10px 0; border-radius: 4px; cursor: pointer; font-size: 12px; width: 100%; }
-        button:active { background: #555; transform: scale(0.98); }
+        .control-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 5px; }
+        button, select { 
+            background: #333; color: white; border: none; padding: 10px 0; border-radius: 4px; 
+            cursor: pointer; font-size: 12px; width: 100%; height: 36px; /* 高さ確保 */
+        }
+        button:active { background: #555; }
         button.active { background: #1DB954; color: #fff; font-weight: bold; }
         select { text-align: center; text-align-last: center; appearance: none; border: 1px solid #444; }
 
-        .big-play-btn { width: 100%; background: #333; font-size: 1.1rem; font-weight: bold; padding: 12px 0; margin-bottom: 8px; border-radius: 6px; }
+        .big-play-btn { width: 100%; background: #333; font-size: 1.1rem; font-weight: bold; padding: 10px 0; margin-bottom: 5px; border-radius: 6px; }
         .big-play-btn.active { background: #1DB954; }
 
         .volume-controls { 
             display: flex; align-items: center; gap: 8px; 
-            background: #222; padding: 8px 10px; border-radius: 4px; margin-bottom: 2px; 
+            background: #222; padding: 5px 10px; border-radius: 4px; 
+            height: 40px; /* 高さ確保 */
         }
         .volume-label { font-size: 0.7rem; color: #aaa; flex-shrink: 0; }
         input[type=range] { width: 100%; cursor: pointer; accent-color: #1DB954; height: 20px; margin: 0; }
 
-        /* 4. 下部メニュー (固定・最下段) */
+        /* 3. 下部メニュー (固定・最下段) */
         .bottom-menu {
             flex-shrink: 0; /* 縮小禁止 */
             height: 50px; width: 100%; background: #1a1a1a; 
@@ -97,17 +106,16 @@
         .menu-btn {
             flex: 1; background: transparent; border: none; border-right: 1px solid #333;
             color: #888; font-size: 12px; cursor: pointer; padding: 0; margin: 0; border-radius: 0;
-            display: flex; align-items: center; justify-content: center; flex-direction: column;
+            display: flex; align-items: center; justify-content: center;
         }
         .menu-btn:last-child { border-right: none; }
         .menu-btn.active { color: #1DB954; background: #252525; font-weight: bold; }
-        .menu-btn:active { background: #333; }
 
         /* ログオーバーレイ */
         #log-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.95); z-index: 3000;
-            display: none; flex-direction: column; padding: 20px; box-sizing: border-box;
+            display: none; flex-direction: column; padding: 20px;
         }
         #log-content {
             flex: 1; background: #111; border: 1px solid #444; color: #ccc;
@@ -115,23 +123,24 @@
             white-space: pre-wrap; margin-bottom: 10px; font-family: monospace;
         }
         .log-actions { display: flex; gap: 10px; height: 45px; flex-shrink: 0; }
-        .log-btn { flex: 1; background: #333; border: 1px solid #555; color: #fff; cursor: pointer; font-size: 13px; }
+        .log-btn { flex: 1; background: #333; border: 1px solid #555; color: #fff; cursor: pointer; }
 
         .hidden { display: none !important; }
+        #auth-btn { background: #1DB954; color: white; font-weight: bold; border: 1px solid #fff; padding: 15px; width: 80%; margin: 50px auto; }
     </style>
 </head>
 <body>
     <div class="header-area">
-        <div class="version-tag">Ver.1.5.9.18</div>
+        <div class="version-tag">Ver.1.5.9.19</div>
         <h1>G-Drive Music</h1>
         <div id="song-title">接続待機中...</div>
     </div>
 
     <button id="auth-btn" class="hidden" onclick="handleAuthClick()">Googleドライブに接続</button>
 
-    <div id="main-ui" class="hidden">
+    <div id="main-container" class="hidden">
         
-        <div class="content-container">
+        <div class="lists-wrapper">
             <div class="list-box">
                 <h4>フォルダ</h4>
                 <div id="folder-list" class="scroll-area"></div>
@@ -142,7 +151,7 @@
             </div>
         </div>
 
-        <div class="controls-area">
+        <div class="controls-wrapper">
             <div id="visualizer-container"><canvas id="visualizer"></canvas></div>
             <div id="timer-display" class="timer-info"></div>
 
@@ -154,7 +163,7 @@
                 <button onclick="prevTrack()">戻る</button>
                 <button onclick="skip(10)">+10秒</button>
                 <select id="sleep-timer" onchange="setSleepTimer()">
-                    <option value="0">Timer: OFF</option>
+                    <option value="0">タイマー: OFF</option>
                     <option value="30">30分</option>
                     <option value="60">60分</option>
                     <option value="120">120分</option>
@@ -217,13 +226,13 @@
 
         setTimeout(() => {
             const title = document.getElementById('song-title');
-            if (title.innerText === "接続待機中..." && document.getElementById('main-ui').classList.contains('hidden')) {
+            if (title.innerText === "接続待機中..." && document.getElementById('main-container').classList.contains('hidden')) {
                 document.getElementById('auth-btn').classList.remove('hidden');
                 title.innerText = "接続してください";
             }
         }, 2000);
 
-        // --- Log Functions ---
+        // --- Log ---
         function addLog(msg) {
             const time = new Date().toLocaleTimeString('ja-JP', {hour12: false});
             const line = `[${time}] ${msg}`;
@@ -248,7 +257,7 @@
                     accessToken = resp.access_token;
                     tokenExpiry = Date.now() + 3500 * 1000;
                     document.getElementById('auth-btn').classList.add('hidden');
-                    document.getElementById('main-ui').classList.remove('hidden');
+                    document.getElementById('main-container').classList.remove('hidden');
                     addLog("Auth Success");
                     fetchUserEmail();
                     if (isRetry) { isRetry = false; if(playlist.length > 0) playTrack(currentIndex); else initApp(); }
@@ -352,7 +361,7 @@
                     btn.id = `folder-${f.id}`; btn.innerText = "📁 " + f.name;
                     btn.onclick = () => loadSongs(f.id, f.name, true); listEl.appendChild(btn);
                 });
-                addLog(`Folders Loaded: ${allFolders.length}`);
+                addLog(`Folders: ${allFolders.length}`);
             } catch(e) { addLog("Folder Err: " + e.message); }
         }
 
