@@ -1,50 +1,126 @@
-HTML
 <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>G-Drive Music Ver.1.5.9.9</title>
+    <title>G-Drive Music Ver.1.5.9.15</title>
     <style>
-        body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 10px; position: relative; display: flex; flex-direction: column; height: 95vh; }
-        .version-tag { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; color: #666; }
-        h1 { font-size: 1.1rem; margin: 5px 0; color: #888; }
-        #song-title { margin: 10px 0; font-weight: bold; color: #1DB954; font-size: 1.1rem; min-height: 2.4em; display: flex; align-items: center; justify-content: center; padding: 0 10px; }
-        .content-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 8px; max-width: 600px; margin: 0 auto 10px; flex-grow: 1; min-height: 0; width: 100%; }
-        .list-box { background: #1e1e1e; border-radius: 8px; overflow-y: auto; border: 1px solid #333; text-align: left; padding: 5px; display: flex; flex-direction: column; }
+        /* レイアウト修正: 画面全体を固定し、中身だけスクロールさせる */
+        body { 
+            font-family: sans-serif; background: #121212; color: white; 
+            text-align: center; margin: 0; padding: 0; 
+            height: 100vh; /* 画面の高さを100%に固定 */
+            display: flex; flex-direction: column; 
+            overflow: hidden; /* 全体のスクロールを禁止 */
+        }
+
+        .header-area { flex-shrink: 0; padding: 10px; }
+        .version-tag { position: absolute; top: 5px; right: 10px; font-size: 0.7rem; color: #666; }
+        h1 { font-size: 1.1rem; margin: 0; color: #888; }
+        
+        #song-title { 
+            margin: 5px 0; font-weight: bold; color: #1DB954; font-size: 1.0rem; 
+            min-height: 2.4em; display: flex; align-items: center; justify-content: center; 
+            padding: 0 10px; word-break: break-all;
+        }
+
+        /* メインUI: 縦方向に伸縮可能にする */
+        #main-ui {
+            flex-grow: 1; /* 余ったスペースを全部使う */
+            display: flex; flex-direction: column;
+            min-height: 0; /* これがないと縮まない */
+            padding: 0 10px;
+        }
+
+        /* リストエリア: ここだけスクロールさせる */
+        .content-grid { 
+            display: grid; grid-template-columns: 1fr 1.5fr; gap: 8px; 
+            max-width: 600px; margin: 0 auto; width: 100%;
+            flex-grow: 1; /* 上下に伸びる */
+            min-height: 0; /* 縮小限界 */
+            margin-bottom: 10px;
+        }
+
+        .list-box { 
+            background: #1e1e1e; border-radius: 8px; border: 1px solid #333; 
+            text-align: left; padding: 5px; display: flex; flex-direction: column; 
+            height: 100%; box-sizing: border-box;
+        }
         .list-box h4 { font-size: 0.75rem; margin: 3px; color: #666; border-bottom: 1px solid #333; padding-bottom: 3px; text-align: center; flex-shrink: 0; }
-        .scroll-area { flex-grow: 1; overflow-y: auto; }
-        .item-btn { width: 100%; text-align: left; background: transparent; padding: 12px 5px; border-radius: 4px; font-size: 13px; border-bottom: 1px solid #252525; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: #ccc; }
+        .scroll-area { flex-grow: 1; overflow-y: auto; /* 中身だけスクロール */ }
+        
+        .item-btn { 
+            width: 100%; text-align: left; background: transparent; padding: 10px 5px; 
+            border-radius: 4px; font-size: 12px; border-bottom: 1px solid #252525; 
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: #ccc; 
+        }
         .item-btn:active { background: #333; }
         .item-btn.playing { color: #1DB954; font-weight: bold; background: #222; }
         .item-btn.current-folder { color: #fff; border-left: 3px solid #1DB954; }
-        .bottom-controls { flex-shrink: 0; padding-top: 10px; background: #121212; }
+
+        /* 操作パネルエリア: 固定高さ */
+        .controls-area { flex-shrink: 0; padding-bottom: 60px; /* 下部メニューの分空ける */ }
+
         .control-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-width: 450px; margin: 0 auto 8px; }
-        button, select { background: #333; color: white; border: none; padding: 12px 2px; border-radius: 6px; cursor: pointer; font-size: 13px; width: 100%; }
+        button, select { background: #333; color: white; border: none; padding: 10px 2px; border-radius: 6px; cursor: pointer; font-size: 12px; width: 100%; }
         button:active { background: #555; transform: scale(0.96); }
         button.active { background: #1DB954; color: #fff; font-weight: bold; }
         select { text-align: center; text-align-last: center; appearance: none; border: 1px solid #444; }
-        .big-play-btn { width: 100%; max-width: 450px; margin: 0 auto 8px; display: block; background: #333; font-size: 1.2rem; font-weight: bold; padding: 15px; }
+
+        .big-play-btn { width: 100%; max-width: 450px; margin: 0 auto 8px; display: block; background: #333; font-size: 1.2rem; font-weight: bold; padding: 12px; }
         .big-play-btn.active { background: #1DB954; }
-        .scope-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-width: 450px; margin: 0 auto 8px; }
-        .scope-btn { background: #222; border: 1px solid #444; color: #888; }
-        .scope-btn.active { background: #1DB954; color: white; border-color: #1DB954; }
-        .volume-controls { max-width: 450px; margin: 0 auto 8px; display: flex; align-items: center; gap: 10px; background: #222; padding: 8px 15px; border-radius: 6px; }
+
+        .volume-controls { max-width: 450px; margin: 0 auto; display: flex; align-items: center; gap: 10px; background: #222; padding: 8px 15px; border-radius: 6px; }
         .volume-label { font-size: 0.7rem; color: #aaa; }
         input[type=range] { width: 100%; cursor: pointer; accent-color: #1DB954; height: 4px; }
-        #visualizer-container { max-width: 450px; margin: 0 auto 5px; height: 40px; background: #1a1a1a; border-radius: 4px; overflow: hidden; border: 1px solid #333; }
+
+        #visualizer-container { max-width: 450px; margin: 0 auto 5px; height: 30px; background: #1a1a1a; border-radius: 4px; overflow: hidden; border: 1px solid #333; }
         #visualizer { width: 100%; height: 100%; display: block; }
+
+        /* ★下部メニュー（指示通り） */
+        .bottom-menu {
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 50px;
+            background: #1a1a1a; border-top: 1px solid #333;
+            display: flex; z-index: 100;
+        }
+        .menu-btn {
+            flex: 1; /* 均等幅 */
+            background: transparent; border: none; border-right: 1px solid #333;
+            color: #888; font-size: 13px; cursor: pointer; padding: 0; margin: 0; border-radius: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .menu-btn:last-child { border-right: none; }
+        .menu-btn.active { color: #1DB954; font-weight: bold; background: #252525; }
+
+        /* ログオーバーレイ */
+        #log-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 2000;
+            display: none; flex-direction: column; padding: 20px; box-sizing: border-box;
+        }
+        #log-content {
+            flex: 1; background: #111; border: 1px solid #444; color: #ccc;
+            padding: 10px; overflow-y: scroll; text-align: left; font-size: 11px;
+            white-space: pre-wrap; margin-bottom: 10px; font-family: monospace;
+        }
+        .log-actions { display: flex; gap: 10px; height: 45px; flex-shrink: 0; }
+        .log-btn { flex: 1; background: #333; border: 1px solid #555; }
+
         .hidden { display: none !important; }
-        #auth-btn { background: #1DB954; color: white; font-weight: bold; border: 1px solid #fff; padding: 15px; width: 80%; }
-        .timer-info { max-width: 450px; margin: 0 auto 5px; font-size: 0.7rem; color: #888; min-height: 1em; }
+        #auth-btn { background: #1DB954; color: white; font-weight: bold; border: 1px solid #fff; padding: 15px; width: 80%; margin: 20px auto; }
+        .timer-info { max-width: 450px; margin: 0 auto 2px; font-size: 0.7rem; color: #888; min-height: 1em; }
     </style>
 </head>
 <body>
-    <div class="version-tag">Ver.1.5.9.9</div>
-    <h1>G-Drive Music</h1>
-    <button id="auth-btn" class="hidden" onclick="handleAuthClick()" style="max-width:200px; margin:20px auto;">Googleドライブに接続</button>
-    <div id="song-title">接続中...</div>
-    <div id="main-ui" class="hidden" style="display: flex; flex-direction: column; flex-grow: 1; min-height: 0;">
+    <div class="header-area">
+        <div class="version-tag">Ver.1.5.9.15</div>
+        <h1>G-Drive Music</h1>
+        <div id="song-title">接続中...</div>
+    </div>
+
+    <button id="auth-btn" class="hidden" onclick="handleAuthClick()">Googleドライブに接続</button>
+
+    <div id="main-ui" class="hidden">
         <div class="content-grid">
             <div class="list-box">
                 <h4>フォルダ</h4>
@@ -55,49 +131,65 @@ HTML
                 <div id="song-list" class="scroll-area"></div>
             </div>
         </div>
-        <div class="bottom-controls">
+
+        <div class="controls-area">
             <div id="visualizer-container"><canvas id="visualizer"></canvas></div>
             <div id="timer-display" class="timer-info"></div>
+            
             <div class="control-grid">
                 <button onclick="changeMode('normal')" id="mode-normal" class="active">順次</button>
                 <button onclick="changeMode('shuffle')" id="mode-shuffle">シャッフル</button>
                 <button onclick="toggleRepeat()" id="repeat-btn">リピート: OFF</button>
+                
                 <button onclick="prevTrack()">戻り</button>
                 <button onclick="skip(10)">+10秒</button>
                 <select id="sleep-timer" onchange="setSleepTimer()">
-                    <option value="0">タイマー: OFF</option>
+                    <option value="0">Timer: OFF</option>
                     <option value="30">30分</option>
                     <option value="60">60分</option>
                     <option value="120">120分</option>
-                    <option value="180">180分</option>
                 </select>
+                
                 <button onclick="nextTrack()">送り</button>
                 <button onclick="skip(-10)">-10秒</button>
-                <button onclick="audio.pause()" id="btn-pause">一時停止</button>
+                <button onclick="toggleUserPause()" id="btn-pause">一時停止</button>
             </div>
+            
             <button onclick="resumeOrPlay()" id="big-play-btn" class="big-play-btn">再生</button>
-            <div class="scope-controls">
-                <button onclick="changeScope('folder')" id="scope-folder" class="scope-btn active">フォルダ内</button>
-                <button onclick="changeScope('all')" id="scope-all" class="scope-btn">全フォルダ</button>
-            </div>
+            
             <div class="volume-controls">
                 <span class="volume-label">VOL</span>
                 <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1.0">
             </div>
         </div>
     </div>
+
+    <div class="bottom-menu">
+        <button onclick="changeScope('folder')" id="scope-folder" class="menu-btn active">フォルダ内</button>
+        <button onclick="changeScope('all')" id="scope-all" class="menu-btn">全フォルダ</button>
+        <button onclick="toggleLog()" class="menu-btn">Log</button>
+    </div>
+
+    <div id="log-overlay">
+        <h3 style="color:#0f0; margin:0 0 10px 0;">Error & Skip Logs</h3>
+        <div id="log-content">ログはありません</div>
+        <div class="log-actions">
+            <button class="log-btn" onclick="copyLog()">ログをコピー</button>
+            <button class="log-btn" onclick="toggleLog()">閉じる</button>
+        </div>
+    </div>
+
     <audio id="audio-player" crossorigin="anonymous"></audio>
 
     <script>
         const CLIENT_ID = '870566274257-1e240kru9vef55k8ke7odf522tn7i864.apps.googleusercontent.com';
         const PARENT_ID = '1t5V8v-i-cYsOG9DcDveR2SzJp1JO5Uwj';
-        // ★ メールアドレスを取得するためのScopeを追加
         const SCOPES = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.email';
         const STORE_KEY = 'gdrive_music_state';
 
         let tokenClient, accessToken = null;
-        let tokenExpiry = 0; // ★ トークン有効期限管理
-        let userEmail = null; // ★ ログインヒント用メールアドレス
+        let tokenExpiry = 0;
+        let userEmail = null;
 
         let allFolders = [], playlist = [], currentIndex = 0;
         let isShuffle = false, repeatMode = 0, playScope = 'folder'; 
@@ -113,6 +205,10 @@ HTML
         let folderCache = {};
         let playedHistory = {};
         let globalHistory = [];
+        
+        // ★ログ用変数
+        let appLogs = [];
+        let isUserPaused = false; // ユーザーが意図的に停止したか
 
         const audio = document.getElementById('audio-player');
         const volumeSlider = document.getElementById('volume-slider');
@@ -131,136 +227,74 @@ HTML
             }
         }, 3000);
 
+        // --- ログ機能 ---
+        function addLog(msg) {
+            const time = new Date().toLocaleTimeString('ja-JP', {hour12: false});
+            const line = `[${time}] ${msg}`;
+            appLogs.push(line);
+            console.log(line);
+            
+            const area = document.getElementById('log-content');
+            area.innerText = appLogs.join('\n');
+            area.scrollTop = area.scrollHeight;
+        }
+
+        function toggleLog() {
+            const el = document.getElementById('log-overlay');
+            el.classList.toggle('hidden');
+            if (!el.classList.contains('hidden')) {
+                document.getElementById('log-content').scrollTop = document.getElementById('log-content').scrollHeight;
+            }
+        }
+
+        function copyLog() {
+            navigator.clipboard.writeText(appLogs.join('\n'))
+                .then(() => alert("コピーしました"))
+                .catch(e => alert("コピー失敗: " + e));
+        }
+
+        // --- 認証 ---
         function gapiLoaded() { gapi.load('client', () => {}); }
         function gisLoaded() {
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID, scope: SCOPES,
                 callback: (resp) => {
-                    if (resp.error) { document.getElementById('auth-btn').classList.remove('hidden'); return; }
+                    if (resp.error) { document.getElementById('auth-btn').classList.remove('hidden'); addLog("Auth Error: " + JSON.stringify(resp)); return; }
                     accessToken = resp.access_token;
-                    
-                    // ★ トークン期限を設定 (現在時刻 + 3500秒 = 約58分後)
                     tokenExpiry = Date.now() + 3500 * 1000;
                     
                     document.getElementById('auth-btn').classList.add('hidden');
                     document.getElementById('main-ui').classList.remove('hidden');
-
-                    // ★ ユーザーのメールアドレスを取得して保存 (次回の再接続で使う)
+                    addLog("認証成功");
+                    
                     fetchUserEmail();
-
                     if (isRetry) { isRetry = false; if(playlist.length > 0) playTrack(currentIndex); else initApp(); }
                     else initApp();
                 },
             });
-            // 初回はメールアドレスが不明なのでhintなし
             tokenClient.requestAccessToken({ prompt: '' });
         }
 
         async function fetchUserEmail() {
+            if (userEmail) return;
+            const savedEmail = localStorage.getItem('gdrive_user_email');
+            if (savedEmail) { userEmail = savedEmail; return; }
             try {
-                // 保存済みならスキップ
-                if (userEmail) return;
-                const savedEmail = localStorage.getItem('gdrive_user_email');
-                if (savedEmail) { userEmail = savedEmail; return; }
-
-                const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
+                const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { 'Authorization': `Bearer ${accessToken}` } });
                 if (resp.ok) {
                     const data = await resp.json();
                     userEmail = data.email;
                     localStorage.setItem('gdrive_user_email', userEmail);
-                    console.log("User email stored for auto-reconnect:", userEmail);
                 }
-            } catch (e) { console.error("Failed to fetch user info", e); }
+            } catch (e) { console.error(e); }
         }
 
-        // ★ 重要: アクションを起こす前に必ずトークンをチェックする関数
-        // タイマー依存ではなく、操作（再生・曲送り）の直前に確認する
-        async function checkTokenValidity() {
-            // 残り5分を切っていたら更新
-            if (Date.now() > tokenExpiry - (5 * 60 * 1000)) {
-                console.log("Token expiring soon, refreshing...");
-                await refreshToken();
-            }
-        }
-
-        // ★ Promiseでラップしたトークンリフレッシュ処理
-        function refreshToken() {
-            return new Promise((resolve) => {
-                // メールアドレスがわかっている場合は hint を指定してアカウント選択を回避
-                const config = { prompt: '' };
-                if (userEmail) config.hint = userEmail;
-
-                // callbackを一時的にオーバーライドしてPromiseを解決する
-                const originalCallback = tokenClient.callback;
-                tokenClient.callback = (resp) => {
-                    if (!resp.error) {
-                        accessToken = resp.access_token;
-                        tokenExpiry = Date.now() + 3500 * 1000;
-                        console.log("Token refreshed successfully.");
-                    } else {
-                        console.error("Token refresh failed", resp);
-                        // 失敗したら手動ボタンを出すなどの処理が必要だが、
-                        // ここではとりあえずログのみ。hintがあれば成功率は高い。
-                    }
-                    // コールバックを戻す (gisLoadedで定義したものへ)
-                    // ただしgisLoadedのcallbackはinitApp等を呼んでしまうので、
-                    // ここでのrefresh用には何もしないのが正解に近いが、
-                    // 既存のcallback構造上、access_token更新だけで十分
-                    resolve();
-                };
-                
-                tokenClient.requestAccessToken(config);
-                
-                // 次回以降のためにコールバックを元に戻すのは難しいので、
-                // requestAccessTokenの挙動として「最後のcallbackが呼ばれる」仕様を利用し、
-                // Promise解決専用のcallbackを定義しなおす形で実装するのが安全
-            });
-        }
-        
-        // GISの仕様上、callbackはinit時に設定されるため、
-        // 上記のPromise化は少々ハックが必要。
-        // より安全な「既存フローを邪魔しない」実装：
-        // gisLoadedで定義したcallback内で「更新だけ」かどうかを判定するのは複雑なので、
-        // ここでは「requestAccessToken」を呼ぶと、gisLoaded内のcallbackが呼ばれることを利用する。
-        // isRetryフラグは「失敗後の再試行」用だが、「事前更新」用にも流用する。
-
-        // ★ 修正版 checkTokenValidity
-        async function ensureToken() {
-             if (Date.now() > tokenExpiry - (5 * 60 * 1000)) {
-                 console.log("Refreshing token before action...");
-                 // prompt: '' と hint を使って更新
-                 // Promise化が難しいため、古いやり方だが「更新リクエストを投げて、完了を少し待つ」か
-                 // あるいは「切れる前に更新リクエストを投げっぱなしにする」
-                 // ここでは一番確実な「リクエストを投げる」を行う。
-                 // コールバック側で accessToken と expiry が更新される。
-                 const config = { prompt: '' };
-                 if (userEmail) config.hint = userEmail;
-                 
-                 // isRetry=trueにしておくと、callback内でplayTrack等が呼ばれる(再生が止まる可能性がある)
-                 // なので、サイレント更新時は isRetry=false のままにしておきたいが、
-                 // そうするとcallbackでinitAppが呼ばれて画面がリセットされる。
-                 // → callbackのロジックを微調整する必要があります。
-                 
-                 // ここでは簡便のため、tokenClientを再初期化せずにリクエストだけ送る。
-                 // Googleのライブラリは非同期だがawaitできない。
-                 // 実際には「トークンが切れて401が出る -> refreshAccessTokenが呼ばれる」の流れが
-                 // hint付きであればアカウント選択画面を出さずに成功するはず。
-                 
-                 // なので、この関数では「自分から更新」はせず、
-                 // 「401エラー時のリカバリ」を強化する方針にします。
-             }
-        }
-
-        // ★ 401エラー時のリカバリ関数 (強化版)
         function handleAuthClick() { tokenClient.requestAccessToken({ prompt: 'select_account' }); }
         
         function refreshAccessToken() {
-            console.log("401 Error detected. Refreshing with hint...");
+            addLog("401 Error -> Refreshing Token...");
             isRetry = true;
             const config = { prompt: '' };
-            // ★ ここが肝：メールアドレスを指定して「この人です」と伝える
             if (userEmail) config.hint = userEmail;
             tokenClient.requestAccessToken(config);
         }
@@ -272,16 +306,14 @@ HTML
             if (saved.playScope !== undefined) changeScope(saved.playScope);
             if (saved.volume !== undefined) { volumeSlider.value = saved.volume; audio.volume = saved.volume; }
             
-            // 以前保存したメールアドレスがあれば復元
-            const savedEmail = localStorage.getItem('gdrive_user_email');
-            if (savedEmail) userEmail = savedEmail;
-
             changeMode(isShuffle ? 'shuffle' : 'normal');
             setupMediaSessionHandlers();
+            
             canvas = document.getElementById('visualizer');
             canvasCtx = canvas.getContext('2d');
             resizeCanvas();
             window.addEventListener('resize', resizeCanvas);
+            
             await loadFolders();
             if (saved.folderId) loadSongs(saved.folderId, saved.folderName, false);
             else document.getElementById('song-title').innerText = "フォルダを選択してください";
@@ -300,7 +332,7 @@ HTML
                 dataArray = new Uint8Array(analyser.frequencyBinCount);
                 isAudioContextInitialized = true;
                 drawVisualizer();
-            } catch(e) { console.error(e); }
+            } catch(e) { addLog("AudioContext Error: " + e.message); }
         }
 
         function resizeCanvas() { canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; }
@@ -343,24 +375,12 @@ HTML
             currentFolderShuffleIndex = 0;
         }
 
-        function formatTrackName(name) {
-            return name.replace(/\.[^/.]+$/, "");
-        }
-
-        function getDisplayTitle(folderName, fileName) {
-            const cleanName = formatTrackName(fileName);
-            return `[${folderName}] ${cleanName}`;
-        }
+        function formatTrackName(name) { return name.replace(/\.[^/.]+$/, ""); }
+        function getDisplayTitle(folderName, fileName) { return `[${folderName}] ${formatTrackName(fileName)}`; }
 
         async function loadFolders() {
             try {
-                // アクション前にトークンチェック（簡易）
-                if (Date.now() > tokenExpiry - 300000 && userEmail) {
-                     console.log("Token expiring, refreshing silently...");
-                     tokenClient.requestAccessToken({ prompt: '', hint: userEmail });
-                     // 非同期でリクエストだけ投げて、失敗したら401リカバリに任せる
-                }
-
+                if (Date.now() > tokenExpiry - 300000 && userEmail) tokenClient.requestAccessToken({ prompt: '', hint: userEmail });
                 const query = `'${PARENT_ID}' in parents and mimeType = 'application/vnd.google-apps.folder'`;
                 const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
                 if(resp.status === 401) { refreshAccessToken(); return; }
@@ -374,7 +394,8 @@ HTML
                     btn.id = `folder-${f.id}`; btn.innerText = "📁 " + f.name;
                     btn.onclick = () => loadSongs(f.id, f.name, true); listEl.appendChild(btn);
                 });
-            } catch(e) { console.error(e); }
+                addLog(`フォルダ取得完了: ${allFolders.length}件`);
+            } catch(e) { addLog("Load Folders Error: " + e.message); }
         }
 
         async function loadSongs(folderId, folderName, autoPlay, pickRandomUnique = false) {
@@ -406,8 +427,9 @@ HTML
                     btn.onclick = () => playTrack(idx); listEl.appendChild(btn);
                 });
                 document.getElementById('song-title').innerText = `${folderName} (${playlist.length}曲)`;
-
+                
                 if (playlist.length === 0) {
+                    addLog(`フォルダ空: ${folderName}`);
                     if (autoPlay && playScope === 'all') { setTimeout(nextTrack, 500); }
                     return;
                 }
@@ -425,22 +447,32 @@ HTML
                 } else if (autoPlay) {
                     playTrack(isShuffle ? shuffleIndices[0] : 0);
                 }
-
-            } catch(e) { console.error(e); }
+            } catch(e) { addLog("Load Songs Error: " + e.message); }
         }
 
         function resumeOrPlay() {
             initAudioContext();
             if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-            if (audio.src && audio.src !== window.location.href) { if (audio.error) audio.load(); audio.play().catch(e => {}); }
+            if (audio.src && audio.src !== window.location.href) { 
+                isUserPaused = false; 
+                audio.play().catch(e => addLog("Play Error: " + e.message)); 
+            }
             else if (playlist.length > 0) playTrack(currentIndex);
         }
 
-        function playTrack(index) {
-            // ★ 再生前にもトークンチェック
-            if (Date.now() > tokenExpiry - 300000 && userEmail) {
-                 tokenClient.requestAccessToken({ prompt: '', hint: userEmail });
+        function toggleUserPause() {
+            if (audio.paused) {
+                isUserPaused = false;
+                audio.play();
+            } else {
+                isUserPaused = true;
+                audio.pause();
+                addLog("ユーザー一時停止");
             }
+        }
+
+        function playTrack(index) {
+            if (Date.now() > tokenExpiry - 300000 && userEmail) tokenClient.requestAccessToken({ prompt: '', hint: userEmail });
 
             initAudioContext();
             if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
@@ -450,12 +482,6 @@ HTML
             if (isShuffle && !folderCache) {
                  const foundIdx = shuffleIndices.indexOf(index);
                  if (foundIdx !== -1) shuffleIndex = foundIdx;
-            }
-
-            const lastHistory = globalHistory[globalHistory.length - 1];
-            if (!lastHistory || lastHistory.folderId !== currentFolderId || lastHistory.songIndex !== index) {
-                globalHistory.push({ folderId: currentFolderId, songIndex: index });
-                if (globalHistory.length > 50) globalHistory.shift();
             }
 
             const track = playlist[index];
@@ -469,21 +495,56 @@ HTML
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.metadata = new MediaMetadata({ title: formatTrackName(track.name), artist: currentFolderName, album: 'G-Drive Music', artwork: [{ src: ARTWORK_DATA, sizes: '64x64', type: 'image/png' }] });
                 navigator.mediaSession.playbackState = 'playing'; 
-                try { navigator.mediaSession.setPositionState(); } catch(e) {} 
             }
+
+            // フラグ初期化
+            isUserPaused = false;
+            
             audio.pause();
             if (audio.src && audio.src.startsWith('blob:')) URL.revokeObjectURL(audio.src);
             audio.removeAttribute('src'); audio.load(); 
+            
             const fetchUrl = `https://www.googleapis.com/drive/v3/files/${track.id}?alt=media`;
             fetch(fetchUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } })
                 .then(r => { if (r.status === 401) throw new Error('401'); return r.blob(); })
                 .then(blob => {
                     audio.src = URL.createObjectURL(blob); audio.volume = volumeSlider.value;
                     document.getElementById('song-title').innerText = displayTitle;
-                    audio.play().catch(e => {});
-                }).catch(err => { if(err.message.includes('401')) refreshAccessToken(); });
+                    audio.play().catch(e => {
+                        addLog(`再生失敗: ${track.name} / ${e.message}`);
+                        setTimeout(nextTrack, 1000);
+                    });
+                    addLog(`再生開始: ${track.name}`);
+                }).catch(err => { 
+                    addLog(`Fetch Error: ${track.name} / ${err.message}`);
+                    if(err.message.includes('401')) refreshAccessToken();
+                    else setTimeout(nextTrack, 1000); // エラーなら次へ
+                });
         }
 
+        // --- 救済ロジック (謎のスキップ対応) ---
+        audio.onpause = () => {
+            if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+            updatePlayPauseUI(false);
+            
+            // 正常終了 or ユーザー一時停止なら何もしない
+            if (audio.duration && audio.currentTime >= audio.duration - 0.5) return;
+            if (isUserPaused) return;
+
+            // それ以外は「異常停止」
+            const currentTrackName = playlist[currentIndex] ? playlist[currentIndex].name : "Unknown";
+            addLog(`!! 異常停止を検知: ${currentTrackName} -> 自動スキップ`);
+            setTimeout(nextTrack, 1500);
+        };
+
+        audio.onended = () => { addLog("再生完了 -> 次へ"); nextTrack(); };
+        audio.onerror = (e) => { 
+            const code = e.target.error ? e.target.error.code : "unknown";
+            addLog(`Audio Error (Code ${code}) -> スキップ`);
+            setTimeout(() => { nextTrack(); }, 1000); 
+        };
+
+        // --- コントロール系 ---
         function nextTrack() {
             if (repeatMode === 2) { playTrack(currentIndex); return; }
             if (playScope === 'all' && isShuffle) {
@@ -537,13 +598,20 @@ HTML
             } else { playTrack((currentIndex - 1 + playlist.length) % playlist.length); }
         }
 
-        function changeScope(scope) { playScope = scope; document.getElementById('scope-folder').className = `scope-btn ${scope === 'folder' ? 'active' : ''}`; document.getElementById('scope-all').className = `scope-btn ${scope === 'all' ? 'active' : ''}`; saveSettings(); }
+        function changeScope(scope) { 
+            playScope = scope; 
+            document.getElementById('scope-folder').className = `menu-btn ${scope === 'folder' ? 'active' : ''}`; 
+            document.getElementById('scope-all').className = `menu-btn ${scope === 'all' ? 'active' : ''}`; 
+            saveSettings(); 
+        }
+
         function toggleRepeat() {
             repeatMode = (repeatMode + 1) % 3;
             const labels = ["OFF", "ALL", "1曲"];
             document.getElementById('repeat-btn').innerText = "リピート: " + labels[repeatMode];
             document.getElementById('repeat-btn').classList.toggle('active', repeatMode > 0); saveSettings();
         }
+
         function changeMode(m) { 
             isShuffle = (m === 'shuffle'); 
             document.getElementById('mode-shuffle').classList.toggle('active', isShuffle); 
@@ -556,6 +624,7 @@ HTML
             }
             saveSettings(); 
         }
+
         function setSleepTimer() {
             const mins = parseInt(document.getElementById('sleep-timer').value);
             clearTimeout(sleepTimeout); clearInterval(sleepInterval);
@@ -568,20 +637,19 @@ HTML
                 const fade = setInterval(() => { if (audio.volume > 0.1) audio.volume -= 0.1; else { audio.pause(); clearInterval(fade); clearInterval(sleepInterval); audio.volume = volumeSlider.value; display.innerText = "停止しました"; } }, 500);
             }, mins * 60000);
         }
+
         function skip(s) { audio.currentTime += s; }
         
-        audio.onended = nextTrack;
         audio.onplay = () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; updatePlayPauseUI(true); };
-        audio.onpause = () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; updatePlayPauseUI(false); };
-        audio.onerror = () => { setTimeout(() => { nextTrack(); }, 1000); };
         audio.onwaiting = () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; };
 
         function setupMediaSessionHandlers() {
             if ('mediaSession' in navigator) {
-                const handlers = [['play', resumeOrPlay], ['pause', () => audio.pause()], ['previoustrack', prevTrack], ['nexttrack', nextTrack], ['seekbackward', () => skip(-10)], ['seekforward', () => skip(10)]];
+                const handlers = [['play', resumeOrPlay], ['pause', toggleUserPause], ['previoustrack', prevTrack], ['nexttrack', nextTrack], ['seekbackward', () => skip(-10)], ['seekforward', () => skip(10)]];
                 for (const [action, handler] of handlers) { try { navigator.mediaSession.setActionHandler(action, handler); } catch (e) {} }
             }
         }
+        
         audio.addEventListener('loadedmetadata', () => { if ('mediaSession' in navigator && !isNaN(audio.duration) && audio.duration !== Infinity) { navigator.mediaSession.setPositionState({ duration: audio.duration, playbackRate: audio.playbackRate, position: 0 }); } });
         if ('mediaSession' in navigator) {
             audio.addEventListener('timeupdate', () => { 
@@ -589,6 +657,7 @@ HTML
                 if (!isNaN(audio.duration) && audio.duration !== Infinity && !isNaN(audio.currentTime)) { try { navigator.mediaSession.setPositionState({ duration: audio.duration, playbackRate: audio.playbackRate, position: audio.currentTime }); } catch(e) {} } 
             });
         }
+
         function updatePlayPauseUI(isPlaying) {
             const bigPlay = document.getElementById('big-play-btn'); const pauseBtn = document.getElementById('btn-pause');
             if (isPlaying) { bigPlay.classList.add('active'); bigPlay.innerText = "再生中"; pauseBtn.classList.remove('active'); }
